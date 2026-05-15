@@ -1,0 +1,130 @@
+// lib/routes/app_pages.dart
+import 'package:get/get.dart';
+import '../module/auth/forgot_password/forgot_password_binding.dart';
+import '../module/auth/forgot_password/forgot_password_screen.dart';
+import '../module/auth/login/login_binding.dart';
+import '../module/auth/login/login_screen.dart';
+import '../module/auth/onboarding/onboarding_binding.dart';
+import '../module/auth/onboarding/onboarding_screen.dart';
+import '../module/auth/register/register_binding.dart';
+import '../module/auth/register/register_screen.dart';
+import '../module/auth/splash/splash_binding.dart';
+import '../module/auth/splash/splash_screen.dart';
+import '../module/customers/customers_binding.dart';
+import '../module/customers/customers_screen.dart';
+import '../module/dashboard/dashboard_binding.dart';
+import '../module/dashboard/dashboard_screen.dart';
+import 'app_routes.dart';
+
+abstract class AppPages {
+  static final routes = <GetPage>[
+    GetPage(
+      name: Routes.splash,
+      page: () => const SplashScreen(),
+      binding: SplashBinding(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: Routes.onboarding,
+      page: () => const OnboardingScreen(),
+      binding: OnboardingBinding(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: Routes.login,
+      page: () => const LoginScreen(),
+      binding: LoginBinding(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: Routes.register,
+      page: () => const RegisterScreen(),
+      binding: RegisterBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.forgotPassword,
+      page: () => const ForgotPasswordScreen(),
+      binding: ForgotPasswordBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.dashboard,
+      page: () => const DashboardScreen(),
+      binding: DashboardBinding(),
+      transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: Routes.customers,
+      page: () => const CustomersScreen(),
+      binding: CustomersBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    // GetPage(
+    //   name: Routes.addCustomer,
+    //   page: () => const AddCustomerScreen(),
+    //   binding: AddCustomerBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.customerDetail,
+    //   page: () => const CustomerDetailScreen(),
+    //   binding: CustomerDetailBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.subscriptions,
+    //   page: () => const SubscriptionsScreen(),
+    //   binding: SubscriptionsBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.addSubscription,
+    //   page: () => const AddSubscriptionScreen(),
+    //   binding: AddSubscriptionBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.deliveries,
+    //   page: () => const DeliveriesScreen(),
+    //   binding: DeliveriesBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.billing,
+    //   page: () => const BillingScreen(),
+    //   binding: BillingBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.payments,
+    //   page: () => const PaymentsScreen(),
+    //   binding: PaymentsBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.analytics,
+    //   page: () => const AnalyticsScreen(),
+    //   binding: AnalyticsBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.notifications,
+    //   page: () => const NotificationsScreen(),
+    //   binding: NotificationsBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.profile,
+    //   page: () => const ProfileScreen(),
+    //   binding: ProfileBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+    // GetPage(
+    //   name: Routes.settings,
+    //   page: () => const SettingsScreen(),
+    //   binding: SettingsBinding(),
+    //   transition: Transition.rightToLeft,
+    // ),
+  ];
+}
