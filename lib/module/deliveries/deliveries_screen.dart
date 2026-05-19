@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/extensions.dart';
 import '../../data/models/delivery_model.dart';
+import '../../routes/app_routes.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/shimmer_box.dart';
 import 'deliveries_controller.dart';
@@ -39,6 +40,11 @@ class DeliveriesScreen extends StatelessWidget {
               : const SizedBox()),
         ],
       ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => Get.toNamed(Routes.addDeliveries),
+          backgroundColor: AppColors.primary,
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       body: Column(children: [
         // Summary bar
         Container(

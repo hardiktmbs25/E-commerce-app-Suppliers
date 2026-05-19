@@ -153,7 +153,7 @@ class DeliveryRepository {
     }
   }
 
-  // ── Place extra order ──────────────────────────────────────────────────
+  // ── Place extra order / add manual delivery ────────────────────────────
   Future<Result<DeliveryModel>> placeExtraOrder({
     required String vendorId,
     required String customerId,
@@ -164,6 +164,9 @@ class DeliveryRepository {
     required String unit,
     required double amount,
     String? notes,
+    String? subscriptionId,
+    DateTime? scheduledDate,
+    String? deliverySlot,
   }) async {
     final id = const Uuid().v4();
     final now = DateTime.now();
@@ -173,12 +176,14 @@ class DeliveryRepository {
       customerId:      customerId,
       customerName:    customerName,
       customerAddress: customerAddress,
+      subscriptionId:  subscriptionId,
       serviceTypeStr:  serviceType,
       quantity:        quantity,
       unit:            unit,
       amount:          amount,
-      scheduledDate:   now,
-      isExtraOrder:    true,
+      scheduledDate:   scheduledDate ?? now,
+      deliverySlot:    deliverySlot ?? '07:00 AM',
+      isExtraOrder:    subscriptionId == null, // true only for truly manual
       notes:           notes,
       createdAt:       now,
       updatedAt:       now,

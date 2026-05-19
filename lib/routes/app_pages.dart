@@ -1,4 +1,6 @@
 // lib/routes/app_pages.dart
+import 'package:e_commerce_suppliers/module/deliveries/add/add_delivery_binding.dart';
+import 'package:e_commerce_suppliers/module/deliveries/add/add_delivery_screen.dart';
 import 'package:get/get.dart';
 import '../module/analytics/analytics_binding.dart';
 import '../module/analytics/analytics_screen.dart';
@@ -104,6 +106,12 @@ abstract class AppPages {
       name: Routes.addSubscription,
       page: () => const AddSubscriptionScreen(),
       binding: AddSubscriptionBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.addDeliveries,
+      page: () => const AddDeliveryScreen(),
+      binding: AddDeliveryBinding(),
       transition: Transition.rightToLeft,
     ),
     GetPage(

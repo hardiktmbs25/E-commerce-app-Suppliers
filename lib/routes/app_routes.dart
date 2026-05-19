@@ -23,4 +23,5 @@ abstract class Routes {
   static const notifications = '/notifications';
   static const profile       = '/profile';
   static const settings      = '/settings';
+  static const addDeliveries = '/add-deliveries';
 }

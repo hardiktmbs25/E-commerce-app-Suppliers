@@ -17,6 +17,9 @@ import 'services/auth_service.dart';
 import 'data/repositories/vendor_repository.dart';
 import 'data/models/hive/hive_adapters.dart';
 
+//cloudinary keys
+// https://res.cloudinary.com/dfw613e4a/image/upload/f_auto,q_auto/samples/ecommerce/leather-bag-gray.jpg
+
 /// Background FCM handler — must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
