@@ -34,7 +34,7 @@ class BillingController extends GetxController {
           (list) {
         pendingInvoices.assignAll(list);
         totalPendingAmount.value =
-            list.fold(0, (sum, inv) => sum + inv.pendingAmount);
+            list.fold(0.0, (total, inv) => total + inv.pendingAmount);
         isLoading.value = false;
       },
       onError: (e) {
@@ -71,6 +71,7 @@ class BillingController extends GetxController {
       vendorId:      vendorId!,
       invoiceId:     invoice.id,
       customerId:    invoice.customerId,
+      customerName:  invoice.customerName,
       amount:        amount,
       paymentMethod: method,
     );

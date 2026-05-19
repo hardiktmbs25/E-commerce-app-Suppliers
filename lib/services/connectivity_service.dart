@@ -131,7 +131,9 @@ class SyncService extends GetxService {
       case SyncActionType.markDelivery:
       case SyncActionType.recordPayment:
       case SyncActionType.updateSubscription:
-        await ref.update(action.payload..['updatedAt'] = FieldValue.serverTimestamp());
+        final payload = Map<String, dynamic>.from(action.payload);
+        payload['updatedAt'] = FieldValue.serverTimestamp();
+        await ref.update(payload);
         break;
 
       case SyncActionType.deleteCustomer:

@@ -132,6 +132,7 @@ class BillingRepository {
     required String vendorId,
     required String invoiceId,
     required String customerId,
+    required String customerName,
     required double amount,
     required String paymentMethod, // 'cash', 'upi', 'online'
     String? notes,
@@ -180,6 +181,7 @@ class BillingRepository {
           .add({
         'invoiceId':     invoiceId,
         'customerId':    customerId,
+        'customerName':  customerName,
         'vendorId':      vendorId,
         'amount':        amount,
         'paymentMethod': paymentMethod,
@@ -210,9 +212,6 @@ class BillingRepository {
   // ── Vendor-level revenue aggregation ──────────────────────────────────
   Stream<Map<String, double>> watchMonthlyRevenue(
       String vendorId, int month, int year) {
-    final start = DateTime(year, month, 1);
-    final end   = DateTime(year, month + 1, 0);
-
     return _db
         .collection(_invoiceCol(vendorId))
         .where('month', isEqualTo: month)

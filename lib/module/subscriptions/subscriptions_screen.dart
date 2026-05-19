@@ -104,8 +104,8 @@ class SubscriptionsScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: sub.isActive
-                                ? AppColors.success.withOpacity(0.1)
-                                : AppColors.warning.withOpacity(0.1),
+                                ? AppColors.success.withValues(alpha: 0.1)
+                                : AppColors.warning.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(100),
                           ),
                           child: Text(sub.statusStr.toUpperCase(),

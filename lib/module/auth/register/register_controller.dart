@@ -6,7 +6,6 @@ import '../../../routes/app_routes.dart';
 import '../../../services/auth_service.dart';
 import '../../../data/repositories/vendor_repository.dart';
 import '../../../services/local_storage_service.dart';
-import '../../../data/models/vendor_model.dart';
 
 class RegisterController extends GetxController {
   final AuthService _auth     = Get.find<AuthService>();

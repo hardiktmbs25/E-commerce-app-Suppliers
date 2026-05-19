@@ -43,7 +43,7 @@ class CustomerDetailScreen extends GetView<CustomerDetailController> {
                   children: [
                     CircleAvatar(
                       radius: 36,
-                      backgroundColor: Colors.white.withOpacity(0.2),
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
                       child: Text(c.name[0].toUpperCase(),
                           style: const TextStyle(fontSize: 28,
                               fontWeight: FontWeight.w800,
@@ -56,7 +56,7 @@ class CustomerDetailScreen extends GetView<CustomerDetailController> {
                             fontFamily: 'Poppins')),
                     Text(c.phone,
                         style: TextStyle(fontSize: 13,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                             fontFamily: 'Poppins')),
                     const SizedBox(height: 16),
                     // Stats row
@@ -161,7 +161,7 @@ class CustomerDetailScreen extends GetView<CustomerDetailController> {
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: inv.isOverdue
-                                ? AppColors.error.withOpacity(0.3)
+                                ? AppColors.error.withValues(alpha: 0.3)
                                 : AppColors.border,
                           ),
                         ),
@@ -188,8 +188,8 @@ class CustomerDetailScreen extends GetView<CustomerDetailController> {
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: inv.status == InvoiceStatus.paid
-                                    ? AppColors.success.withOpacity(0.1)
-                                    : AppColors.warning.withOpacity(0.1),
+                                    ? AppColors.success.withValues(alpha: 0.1)
+                                    : AppColors.warning.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(100),
                               ),
                               child: Text(
@@ -227,7 +227,7 @@ class _StatChip extends StatelessWidget {
       Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
           color: color, fontFamily: 'Poppins')),
       Text(label, style: TextStyle(fontSize: 11,
-          color: color.withOpacity(0.8), fontFamily: 'Poppins')),
+          color: color.withValues(alpha: 0.8), fontFamily: 'Poppins')),
     ]);
   }
 }

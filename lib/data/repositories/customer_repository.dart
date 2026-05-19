@@ -53,10 +53,10 @@ class CustomerRepository {
           .limit(limit);
 
       if (statusFilter != null) {
-        query = query.where('status', isEqualTo: statusFilter) as Query<Map<String, dynamic>>;
+        query = query.where('status', isEqualTo: statusFilter);
       }
       if (lastDoc != null) {
-        query = query.startAfterDocument(lastDoc) as Query<Map<String, dynamic>>;
+        query = query.startAfterDocument(lastDoc);
       }
 
       final snap = await query.get();

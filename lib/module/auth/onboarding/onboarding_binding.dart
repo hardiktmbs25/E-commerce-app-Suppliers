@@ -1,4 +1,4 @@
-// lib/modules/auth/onboarding/onboarding_binding.dart
+// lib/module/auth/onboarding/onboarding_binding.dart
 import 'package:get/get.dart';
 import 'onboarding_controller.dart';
 

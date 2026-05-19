@@ -24,7 +24,7 @@ class ForgotPasswordScreen extends GetView<ForgotPasswordController> {
                   Container(
                     width: 80, height: 80,
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
+                      color: AppColors.success.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.mark_email_read_outlined,
@@ -69,18 +69,20 @@ class ForgotPasswordScreen extends GetView<ForgotPasswordController> {
                   keyboardType: TextInputType.emailAddress,
                   prefix: const Icon(Icons.email_outlined, size: 18, color: AppColors.textHint),
                 ),
-                if (controller.errorMessage.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(controller.errorMessage.value,
+                Obx(() => controller.errorMessage.isNotEmpty
+                    ? Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(controller.errorMessage.value,
                       style: const TextStyle(fontSize: 12, color: AppColors.error,
                           fontFamily: 'Poppins')),
-                ],
+                )
+                    : const SizedBox()),
                 const SizedBox(height: 24),
-                PrimaryButton(
+                Obx(() => PrimaryButton(
                   label: 'Send Reset Link',
                   onTap: controller.sendResetEmail,
                   isLoading: controller.isLoading.value,
-                ),
+                )),
               ],
             ),
           );

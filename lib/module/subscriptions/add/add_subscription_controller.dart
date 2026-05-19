@@ -14,7 +14,7 @@ class AddSubscriptionController extends GetxController {
   final formKey = GlobalKey<FormState>();
   final quantityCtrl     = TextEditingController(text: '1');
   final pricePerUnitCtrl = TextEditingController();
-  final slotCtrl         = TextEditingController(text: '07:00 AM');
+  final slotCtrl         = TextEditingController();
 
   final selectedCustomer  = Rxn<CustomerModel>();
   final selectedService   = 'milk'.obs;

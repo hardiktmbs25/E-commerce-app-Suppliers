@@ -1,4 +1,4 @@
-// lib/modules/customers/detail/customer_detail_binding.dart
+// lib/module/customers/detail/customer_detail_binding.dart
 import 'package:get/get.dart';
 import '../../../data/repositories/customer_repository.dart';
 import '../../../data/repositories/billing_repository.dart';

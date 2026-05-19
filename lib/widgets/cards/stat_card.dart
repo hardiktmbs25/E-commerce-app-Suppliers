@@ -34,7 +34,7 @@ class StatCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: gradientColors.first.withOpacity(0.35),
+              color: gradientColors.first.withValues(alpha: 0.35),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -49,14 +49,14 @@ class StatCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: Colors.white, size: 20),
                 ),
                 if (onTap != null)
                   Icon(Icons.arrow_forward_ios_rounded,
-                      color: Colors.white.withOpacity(0.7), size: 14),
+                      color: Colors.white.withValues(alpha: 0.7), size: 14),
               ],
             ),
             const SizedBox(height: 14),
@@ -74,7 +74,7 @@ class StatCard extends StatelessWidget {
             Text(
               title,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 fontFamily: 'Poppins',
@@ -85,7 +85,7 @@ class StatCard extends StatelessWidget {
               Text(
                 subtitle!,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.65),
+                  color: Colors.white.withValues(alpha: 0.65),
                   fontSize: 10,
                   fontFamily: 'Poppins',
                 ),

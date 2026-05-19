@@ -146,8 +146,8 @@ class NotificationService extends GetxService {
 
     await _localNotifications.show(
       id: notification.hashCode,
-      title:notification.title,
-      body:notification.body,
+      title: notification.title,
+      body: notification.body,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _channel.id,

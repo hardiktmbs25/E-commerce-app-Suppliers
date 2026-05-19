@@ -8,16 +8,21 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'core/theme/app_theme.dart';
+import 'firebase_options.dart';
 import 'routes/app_pages.dart';
 import 'services/local_storage_service.dart';
 import 'services/notification_service.dart';
 import 'services/connectivity_service.dart';
+import 'services/auth_service.dart';
+import 'data/repositories/vendor_repository.dart';
 import 'data/models/hive/hive_adapters.dart';
 
 /// Background FCM handler — must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   debugPrint('Background FCM: ${message.messageId}');
 }
 
@@ -37,7 +42,9 @@ Future<void> main() async {
   ));
 
   // ── Firebase ────────────────────────────────────────────────────────
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Enable Firestore offline persistence (unlimited cache)
   FirebaseFirestore.instance.settings = const Settings(
@@ -54,8 +61,11 @@ Future<void> main() async {
   await LocalStorageService.init();
 
   // ── Core Services (permanent, never disposed) ───────────────────────
+  Get.put(AuthService(), permanent: true);
   Get.put(ConnectivityService(), permanent: true);
   Get.put(NotificationService(), permanent: true);
+  Get.put(VendorRepository(), permanent: true);
+  Get.put(SyncService(), permanent: true);
 
   runApp(const MyApp());
 }

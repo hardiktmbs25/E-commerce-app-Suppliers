@@ -22,7 +22,7 @@ class DeliveriesController extends GetxController {
   int get deliveredCount => allDeliveries.where((d) => d.isDelivered).length;
   int get pendingCount   => allDeliveries.where((d) => d.isPending).length;
   int get missedCount    => allDeliveries.where((d) => d.isMissed).length;
-  double get totalAmount => allDeliveries.fold(0, (s, d) => s + d.amount);
+  double get totalAmount => allDeliveries.fold(0.0, (total, d) => total + d.amount);
 
   @override
   void onInit() {

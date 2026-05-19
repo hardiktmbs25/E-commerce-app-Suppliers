@@ -17,9 +17,8 @@ abstract class AppTheme {
         primary: primaryColor,
         secondary: AppColors.secondary,
         error: AppColors.error,
-        background: AppColors.background,
         surface: AppColors.surface,
-        surfaceVariant: AppColors.surfaceVariant,
+        surfaceContainerHighest: AppColors.surfaceVariant,
       ),
       scaffoldBackgroundColor: AppColors.background,
 
@@ -161,7 +160,7 @@ abstract class AppTheme {
       // ── Chip ───────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariant,
-        selectedColor: AppColors.primary.withOpacity(0.12),
+        selectedColor: AppColors.primary.withValues(alpha: 0.12),
         labelStyle: const TextStyle(
           fontFamily: 'Poppins',
           fontSize: 12,
@@ -193,9 +192,8 @@ abstract class AppTheme {
         seedColor: AppColors.primary,
         brightness: Brightness.dark,
         primary: AppColors.primaryLight,
-        background: const Color(0xFF0F0E1A),
         surface: const Color(0xFF1A1928),
-        surfaceVariant: const Color(0xFF252340),
+        surfaceContainerHighest: const Color(0xFF252340),
       ),
       cardTheme: CardThemeData(
         color: const Color(0xFF1A1928),

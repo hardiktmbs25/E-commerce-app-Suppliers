@@ -65,15 +65,24 @@ class DeliveryRepository {
     final payload = {
       'status':      newStatus.name,
       'deliveredAt': newStatus == DeliveryStatus.delivered
-          ? FieldValue.serverTimestamp()
+          ? DateTime.now().toIso8601String()
           : null,
       'notes':       notes,
-      'updatedAt':   FieldValue.serverTimestamp(),
+      'updatedAt':   DateTime.now().toIso8601String(),
     };
 
     if (_connectivity.isOnline.value) {
       try {
-        await _db.collection(_col(vendorId)).doc(delivery.id).update(payload);
+        // Use FieldValue.serverTimestamp() for direct Firestore writes
+        final firestorePayload = {
+          'status':      newStatus.name,
+          'deliveredAt': newStatus == DeliveryStatus.delivered
+              ? FieldValue.serverTimestamp()
+              : null,
+          'notes':       notes,
+          'updatedAt':   FieldValue.serverTimestamp(),
+        };
+        await _db.collection(_col(vendorId)).doc(delivery.id).update(firestorePayload);
         // Mark as synced in local cache
         await LocalStorageService.saveDelivery(updated.copyWith(isSynced: true));
         AppLogger.i('Delivery ${delivery.id} marked ${newStatus.name} online');
@@ -203,20 +212,20 @@ class DeliveryRepository {
 
       if (startDate != null) {
         query = query.where('scheduledDate',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate)) as Query<Map<String, dynamic>>;
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
       }
       if (endDate != null) {
         query = query.where('scheduledDate',
-            isLessThanOrEqualTo: Timestamp.fromDate(endDate)) as Query<Map<String, dynamic>>;
+            isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }
       if (customerId != null) {
-        query = query.where('customerId', isEqualTo: customerId) as Query<Map<String, dynamic>>;
+        query = query.where('customerId', isEqualTo: customerId);
       }
       if (status != null) {
-        query = query.where('status', isEqualTo: status) as Query<Map<String, dynamic>>;
+        query = query.where('status', isEqualTo: status);
       }
       if (lastDoc != null) {
-        query = query.startAfterDocument(lastDoc) as Query<Map<String, dynamic>>;
+        query = query.startAfterDocument(lastDoc);
       }
 
       final snap = await query.get();

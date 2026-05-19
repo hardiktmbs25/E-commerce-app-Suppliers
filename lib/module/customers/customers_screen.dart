@@ -146,7 +146,7 @@ class CustomersScreen extends StatelessWidget {
                         // Avatar
                         CircleAvatar(
                           radius: 22,
-                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                           child: Text(
                             customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
                             style: const TextStyle(
@@ -169,8 +169,8 @@ class CustomersScreen extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: customer.isActive
-                                      ? AppColors.success.withOpacity(0.1)
-                                      : AppColors.error.withOpacity(0.1),
+                                      ? AppColors.success.withValues(alpha: 0.1)
+                                      : AppColors.error.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(100),
                                 ),
                                 child: Text(

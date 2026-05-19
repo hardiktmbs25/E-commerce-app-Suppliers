@@ -228,7 +228,7 @@ class _InvoiceTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: invoice.isOverdue
-              ? AppColors.error.withOpacity(0.35)
+              ? AppColors.error.withValues(alpha: 0.35)
               : AppColors.border,
         ),
       ),
@@ -241,7 +241,7 @@ class _InvoiceTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(100),
               ),
               child: const Text('OVERDUE', style: TextStyle(fontSize: 9,

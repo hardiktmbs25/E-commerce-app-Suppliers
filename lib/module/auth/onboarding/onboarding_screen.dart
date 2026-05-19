@@ -28,7 +28,7 @@ class OnboardingScreen extends GetView<OnboardingController> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: const Text('Skip',
@@ -109,7 +109,7 @@ class _OnboardingPage extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [page.bgColor, page.bgColor.withOpacity(0.7)],
+          colors: [page.bgColor, page.bgColor.withValues(alpha: 0.7)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -122,7 +122,7 @@ class _OnboardingPage extends StatelessWidget {
             width: 140,
             height: 140,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -148,7 +148,7 @@ class _OnboardingPage extends StatelessWidget {
             child: Text(
               page.subtitle,
               style: TextStyle(
-                fontSize: 14, color: Colors.white.withOpacity(0.85),
+                fontSize: 14, color: Colors.white.withValues(alpha: 0.85),
                 fontFamily: 'Poppins', height: 1.6,
               ),
               textAlign: TextAlign.center,

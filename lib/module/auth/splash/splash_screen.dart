@@ -24,7 +24,7 @@ class SplashScreen extends GetView<SplashController> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 24,
                     offset: const Offset(0, 8),
                   ),
@@ -55,7 +55,7 @@ class SplashScreen extends GetView<SplashController> {
               'Manage. Deliver. Grow.',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.75),
+                color: Colors.white.withValues(alpha: 0.75),
                 fontFamily: 'Poppins',
                 fontWeight: FontWeight.w400,
               ),
@@ -67,7 +67,7 @@ class SplashScreen extends GetView<SplashController> {
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.white.withOpacity(0.7)),
+                    Colors.white.withValues(alpha: 0.7)),
               ),
             ),
           ],

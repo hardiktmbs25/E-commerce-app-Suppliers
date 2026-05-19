@@ -98,7 +98,7 @@ class SubscriptionsController extends GetxController {
   int get pausedCount   => allSubs.where((s) => s.isPaused).length;
   double get totalMonthlyRevenue =>
       allSubs.where((s) => s.isActive)
-          .fold(0, (sum, s) => sum + s.estimatedMonthlyRevenue);
+          .fold(0.0, (total, s) => total + s.estimatedMonthlyRevenue);
 
   @override
   void onClose() {

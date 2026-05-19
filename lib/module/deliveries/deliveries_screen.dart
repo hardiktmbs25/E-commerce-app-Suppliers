@@ -22,9 +22,9 @@ class DeliveriesScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Today\'s Deliveries'),
-            Obx(() => Text(DateTime.now().formatted,
+            Text(DateTime.now().formatted,
                 style: const TextStyle(fontSize: 11,
-                    color: AppColors.textSecondary, fontFamily: 'Poppins'))),
+                    color: AppColors.textSecondary, fontFamily: 'Poppins')),
           ],
         ),
         actions: [
@@ -41,7 +41,7 @@ class DeliveriesScreen extends StatelessWidget {
       ),
       body: Column(children: [
         // Summary bar
-        Obx(() => Container(
+        Container(
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
           decoration: BoxDecoration(
@@ -62,7 +62,7 @@ class DeliveriesScreen extends StatelessWidget {
             _SummaryItem('Missed', '${ctrl.missedCount}',
                 AppColors.error),
           ]),
-        )),
+        ),
 
         // Filter chips
         Padding(
@@ -191,10 +191,10 @@ class _DeliveryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: delivery.isPending
-              ? AppColors.warning.withOpacity(0.3)
+              ? AppColors.warning.withValues(alpha: 0.3)
               : delivery.isDelivered
-              ? AppColors.success.withOpacity(0.3)
-              : AppColors.error.withOpacity(0.3),
+              ? AppColors.success.withValues(alpha: 0.3)
+              : AppColors.error.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -203,7 +203,7 @@ class _DeliveryCard extends StatelessWidget {
           Container(
             width: 40, height: 40,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
@@ -237,7 +237,7 @@ class _DeliveryCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(100),
               ),
               child: Text(delivery.status.name.toUpperCase(),
@@ -297,9 +297,9 @@ class _ActionBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Center(child: Text(label,
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
