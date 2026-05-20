@@ -101,6 +101,9 @@ class LocalStorageService {
   static List<SubscriptionModel> getSubscriptions() =>
       _subscriptionsBox.values.toList();
 
+  static Future<void> saveSubscription(SubscriptionModel sub) =>
+      _subscriptionsBox.put(sub.id, sub);
+
   static Future<void> saveSubscriptions(List<SubscriptionModel> subs) async {
     final map = {for (final s in subs) s.id: s};
     await _subscriptionsBox.putAll(map);

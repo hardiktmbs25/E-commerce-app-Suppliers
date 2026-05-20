@@ -9,6 +9,9 @@ abstract class AppConstants {
   static const colPayments      = 'payments';
   static const colNotifications = 'notifications';
   static const colRoutes        = 'routes';
+  static const colPlans         = 'plans';
+  static const colAreas         = 'areas';
+  static const colTimeSlots     = 'timeSlots';
 
   // ── Hive boxes ────────────────────────────────────────────────────────
   static const boxSettings      = 'settings';

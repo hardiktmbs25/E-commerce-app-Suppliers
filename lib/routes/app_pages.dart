@@ -26,6 +26,12 @@ import '../module/dashboard/dashboard_binding.dart';
 import '../module/dashboard/dashboard_screen.dart';
 import '../module/deliveries/deliveries_binding.dart';
 import '../module/deliveries/deliveries_screen.dart';
+import '../module/deliveries/detail/delivery_detail_binding.dart';
+import '../module/deliveries/detail/delivery_detail_screen.dart';
+import '../module/deliveries/extra_order/extra_order_binding.dart';
+import '../module/deliveries/extra_order/extra_order_screen.dart';
+import '../module/deliveries/history/delivery_history_binding.dart';
+import '../module/deliveries/history/delivery_history_screen.dart';
 import '../module/notifications/notifications_binding.dart';
 import '../module/notifications/notifications_screen.dart';
 import '../module/payments/payments_binding.dart';
@@ -36,6 +42,8 @@ import '../module/settings/settings_binding.dart';
 import '../module/settings/settings_screen.dart';
 import '../module/subscriptions/add/add_subscription_binding.dart';
 import '../module/subscriptions/add/add_subscription_screen.dart';
+import '../module/subscriptions/global_plans/global_plans_binding.dart';
+import '../module/subscriptions/global_plans/global_plans_screen.dart';
 import '../module/subscriptions/subscriptions_binding.dart';
 import '../module/subscriptions/subscriptions_screen.dart';
 import 'app_routes.dart';
@@ -109,9 +117,9 @@ abstract class AppPages {
       transition: Transition.rightToLeft,
     ),
     GetPage(
-      name: Routes.addDeliveries,
-      page: () => const AddDeliveryScreen(),
-      binding: AddDeliveryBinding(),
+      name: Routes.globalPlans,
+      page: () => const GlobalPlansScreen(),
+      binding: GlobalPlansBinding(),
       transition: Transition.rightToLeft,
     ),
     GetPage(
@@ -124,6 +132,30 @@ abstract class AppPages {
       name: Routes.billing,
       page: () => const BillingScreen(),
       binding: BillingBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.addDelivery,
+      page: () => const AddDeliveryScreen(),
+      binding: AddDeliveryBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.deliveryDetail,
+      page: () => const DeliveryDetailScreen(),
+      binding: DeliveryDetailBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.deliveryHistory,
+      page: () => const DeliveryHistoryScreen(),
+      binding: DeliveryHistoryBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.extraOrder,
+      page: () => const ExtraOrderScreen(),
+      binding: ExtraOrderBinding(),
       transition: Transition.rightToLeft,
     ),
     GetPage(

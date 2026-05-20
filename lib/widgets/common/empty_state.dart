@@ -11,6 +11,7 @@ class EmptyState extends StatelessWidget {
   final VoidCallback? onAction;
 
   const EmptyState({
+
     super.key,
     required this.title,
     required this.subtitle,

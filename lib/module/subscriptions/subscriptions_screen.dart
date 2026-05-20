@@ -15,7 +15,16 @@ class SubscriptionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final ctrl = Get.find<SubscriptionsController>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Subscriptions')),
+      appBar: AppBar(
+        title: const Text('Subscriptions'),
+        actions: [
+          IconButton(
+            onPressed: () => Get.toNamed(Routes.globalPlans),
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: 'Manage Plans & Areas',
+          ),
+        ],
+      ),
       body: Column(children: [
         // Summary bar
         Obx(() => Container(

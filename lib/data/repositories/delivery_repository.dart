@@ -23,22 +23,24 @@ class DeliveryRepository {
     final start = DateTime(today.year, today.month, today.day);
     final end   = DateTime(today.year, today.month, today.day, 23, 59, 59);
 
+    // Single orderBy avoids requiring a composite Firestore index.
+    // routeOrder sorting is done in-memory.
     return _db
         .collection(_col(vendorId))
         .where('scheduledDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
         .where('scheduledDate', isLessThanOrEqualTo: Timestamp.fromDate(end))
         .orderBy('scheduledDate')
-        .orderBy('routeOrder')
         .snapshots()
         .map((snap) {
-      final deliveries = snap.docs.map((d) => DeliveryModel.fromFirestore(d)).toList();
+      final deliveries = snap.docs
+          .map((d) => DeliveryModel.fromFirestore(d))
+          .toList()
+        ..sort((a, b) => a.routeOrder.compareTo(b.routeOrder));
       LocalStorageService.saveDeliveries(deliveries);
       return deliveries;
-    })
-        .handleError((e) {
-      AppLogger.e('watchTodayDeliveries error', e);
-      return LocalStorageService.getTodayDeliveries();
     });
+    // handleError removed — it kills the stream silently.
+    // Errors handled in controller listen() onError instead.
   }
 
   // ── Local today's deliveries (offline fallback) ────────────────────────

@@ -23,5 +23,8 @@ abstract class Routes {
   static const notifications = '/notifications';
   static const profile       = '/profile';
   static const settings      = '/settings';
-  static const addDeliveries = '/add-deliveries';
+  static const addDelivery        = '/add-delivery';
+  static const deliveryHistory    = '/delivery-history';
+  static const extraOrder         = '/extra-order';
+  static const globalPlans        = '/global-plans';
 }

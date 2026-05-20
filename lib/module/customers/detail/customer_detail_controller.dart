@@ -90,6 +90,9 @@ class CustomerDetailController extends GetxController {
 
   void editCustomer() => Get.toNamed(Routes.addCustomer, arguments: customer.value);
 
+  void goToAddDelivery() =>
+      Get.toNamed(Routes.addDelivery, arguments: customer.value);
+
   int get deliveredThisMonth =>
       recentDeliveries.where((d) => d.isDelivered).length;
   int get missedThisMonth =>
@@ -101,4 +104,3 @@ class CustomerDetailController extends GetxController {
     super.onClose();
   }
 }
-

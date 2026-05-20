@@ -107,6 +107,13 @@ class CustomerDetailScreen extends GetView<CustomerDetailController> {
                       color: AppColors.success,
                     )),
                     const SizedBox(height: 10),
+                    PrimaryButton(
+                      label: 'Add Delivery',
+                      onTap: controller.goToAddDelivery,
+                      icon: Icons.add_circle_outline_rounded,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 10),
                     SecondaryButton(
                       label: 'Call Customer',
                       onTap: () {},
