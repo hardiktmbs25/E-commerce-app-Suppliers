@@ -1,8 +1,28 @@
 // lib/data/models/subscription_model.dart
+//
+// CHANGES vs previous version:
+//   • frequencyStr now uses DeliveryFrequency enum names (old 'daily' still
+//     deserializes correctly via FrequencyConstants.fromStr).
+//   • deliverySlots (List<String>) replaces single deliverySlot String so
+//     twice-daily / thrice-daily subscriptions can store multiple time slots.
+//   • deliverySlot getter preserved for backward-compat reads.
+//   • estimatedMonthlyRevenue uses FrequencyConstants.monthlyDeliveries().
+//   • copyWith extended to cover deliverySlots.
+//   • Hive field indices: 22 = deliverySlots  (new, additive – old boxes
+//     without this field will just use the default empty list safely).
+//
+// HIVE NOTE: deliverySlots is a NEW field (index 22). Old cached objects
+// won't have it. The default value [] + getter fallback to deliverySlot
+// ensures zero crashes on upgrade.
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/service_constants.dart';
 part 'subscription_model.g.dart';
+
+// Keep old enum for any remaining usages elsewhere (delivery scheduler etc.)
+// New code should use DeliveryFrequency from service_constants.dart.
 enum SubscriptionFrequency { daily, alternateDay, weekdays, weekends, weekly, custom }
 enum SubscriptionStatus    { active, paused, cancelled, expired }
 
@@ -15,29 +35,32 @@ class SubscriptionModel extends HiveObject {
   @HiveField(4)  final String serviceTypeStr;
   @HiveField(5)  final String frequencyStr;
   @HiveField(6)  final String statusStr;
-  @HiveField(7)  final double quantity;          // e.g. 1.5 (litres/units)
-  @HiveField(8)  final String unit;              // 'litre', 'packet', 'copy', 'box'
+  @HiveField(7)  final double quantity;
+  @HiveField(8)  final String unit;
   @HiveField(9)  final double pricePerUnit;
-  @HiveField(10) final double pricePerDelivery;  // quantity × pricePerUnit
-  @HiveField(11) final String deliverySlot;      // '06:00 AM - 07:00 AM'
+  @HiveField(10) final double pricePerDelivery;
+  /// Legacy single-slot field kept for backward compat. Use [deliverySlots].
+  @HiveField(11) final String deliverySlot;
   @HiveField(12) final DateTime startDate;
   @HiveField(13) final DateTime? endDate;
   @HiveField(14) final DateTime? pausedUntil;
   @HiveField(15) final DateTime? nextDeliveryDate;
-  @HiveField(16) final List<int> customDays;    // 0=Mon..6=Sun for custom freq
+  @HiveField(16) final List<int> customDays;
   @HiveField(17) final int completedDeliveries;
   @HiveField(18) final int pendingDeliveries;
   @HiveField(19) final String? notes;
   @HiveField(20) final DateTime createdAt;
   @HiveField(21) final DateTime updatedAt;
+  /// NEW: ordered list of delivery time strings e.g. ['07:00 AM', '01:00 PM']
+  @HiveField(22) final List<String> deliverySlots;
 
-   SubscriptionModel({
+  SubscriptionModel({
     required this.id,
     required this.vendorId,
     required this.customerId,
     required this.customerName,
     required this.serviceTypeStr,
-    this.frequencyStr = 'daily',
+    this.frequencyStr = 'onceDaily',
     this.statusStr = 'active',
     required this.quantity,
     this.unit = 'unit',
@@ -54,10 +77,12 @@ class SubscriptionModel extends HiveObject {
     this.notes,
     required this.createdAt,
     required this.updatedAt,
+    this.deliverySlots = const [],
   });
 
-  SubscriptionFrequency get frequency => SubscriptionFrequency.values.firstWhere(
-          (e) => e.name == frequencyStr, orElse: () => SubscriptionFrequency.daily);
+  // ── Computed ────────────────────────────────────────────────────────────
+
+  DeliveryFrequency get frequency => FrequencyConstants.fromStr(frequencyStr);
 
   SubscriptionStatus get status => SubscriptionStatus.values.firstWhere(
           (e) => e.name == statusStr, orElse: () => SubscriptionStatus.active);
@@ -65,62 +90,50 @@ class SubscriptionModel extends HiveObject {
   bool get isActive => status == SubscriptionStatus.active;
   bool get isPaused => status == SubscriptionStatus.paused;
 
-  double get estimatedMonthlyRevenue {
-    switch (frequency) {
-      case SubscriptionFrequency.daily:       return pricePerDelivery * 30;
-      case SubscriptionFrequency.alternateDay: return pricePerDelivery * 15;
-      case SubscriptionFrequency.weekdays:    return pricePerDelivery * 22;
-      case SubscriptionFrequency.weekends:    return pricePerDelivery * 8;
-      case SubscriptionFrequency.weekly:      return pricePerDelivery * 4;
-      case SubscriptionFrequency.custom:      return pricePerDelivery * customDays.length * 4;
-    }
-  }
+  /// All time slots: falls back to [deliverySlot] for old records.
+  List<String> get effectiveSlots =>
+      deliverySlots.isNotEmpty ? deliverySlots : [deliverySlot];
 
-  String get frequencyLabel {
-    switch (frequency) {
-      case SubscriptionFrequency.daily:        return 'Daily';
-      case SubscriptionFrequency.alternateDay: return 'Alternate Day';
-      case SubscriptionFrequency.weekdays:     return 'Weekdays';
-      case SubscriptionFrequency.weekends:     return 'Weekends';
-      case SubscriptionFrequency.weekly:       return 'Weekly';
-      case SubscriptionFrequency.custom:       return 'Custom';
-    }
-  }
+  String get frequencyLabel => FrequencyConstants.labelFor(frequency);
 
-  /// Returns whether a delivery should happen on [date] based on frequency
+  double get estimatedMonthlyRevenue =>
+      pricePerDelivery * FrequencyConstants.monthlyDeliveries(frequency);
+
   bool shouldDeliverOn(DateTime date) {
     switch (frequency) {
-      case SubscriptionFrequency.daily:
+      case DeliveryFrequency.onceDaily:
+      case DeliveryFrequency.twiceDaily:
+      case DeliveryFrequency.thriceDaily:
         return true;
-      case SubscriptionFrequency.alternateDay:
-        final diff = date.difference(startDate).inDays;
-        return diff % 2 == 0;
-      case SubscriptionFrequency.weekdays:
-        return date.weekday <= 5; // Mon–Fri
-      case SubscriptionFrequency.weekends:
-        return date.weekday >= 6; // Sat–Sun
-      case SubscriptionFrequency.weekly:
+      case DeliveryFrequency.alternateDay:
+        return date.difference(startDate).inDays % 2 == 0;
+      case DeliveryFrequency.weekly:
         return date.weekday == startDate.weekday;
-      case SubscriptionFrequency.custom:
-        return customDays.contains(date.weekday - 1); // 0=Mon
     }
   }
+
+  // ── Firestore ────────────────────────────────────────────────────────────
 
   factory SubscriptionModel.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
+    final rawSlots = d['deliverySlots'];
+    final List<String> slots = rawSlots != null
+        ? List<String>.from(rawSlots)
+        : [];
     return SubscriptionModel(
       id:                   doc.id,
       vendorId:             d['vendorId'] ?? '',
       customerId:           d['customerId'] ?? '',
       customerName:         d['customerName'] ?? '',
       serviceTypeStr:       d['serviceType'] ?? 'custom',
-      frequencyStr:         d['frequency'] ?? 'daily',
+      frequencyStr:         d['frequency'] ?? 'onceDaily',
       statusStr:            d['status'] ?? 'active',
       quantity:             (d['quantity'] ?? 1).toDouble(),
       unit:                 d['unit'] ?? 'unit',
       pricePerUnit:         (d['pricePerUnit'] ?? 0).toDouble(),
       pricePerDelivery:     (d['pricePerDelivery'] ?? 0).toDouble(),
       deliverySlot:         d['deliverySlot'] ?? '07:00 AM',
+      deliverySlots:        slots,
       startDate:            (d['startDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       endDate:              (d['endDate'] as Timestamp?)?.toDate(),
       pausedUntil:          (d['pausedUntil'] as Timestamp?)?.toDate(),
@@ -145,7 +158,9 @@ class SubscriptionModel extends HiveObject {
     'unit':                unit,
     'pricePerUnit':        pricePerUnit,
     'pricePerDelivery':    pricePerDelivery,
-    'deliverySlot':        deliverySlot,
+    // Keep legacy field in sync with first slot for old readers
+    'deliverySlot':        effectiveSlots.isNotEmpty ? effectiveSlots.first : deliverySlot,
+    'deliverySlots':       effectiveSlots,
     'startDate':           Timestamp.fromDate(startDate),
     'endDate':             endDate != null ? Timestamp.fromDate(endDate!) : null,
     'pausedUntil':         pausedUntil != null ? Timestamp.fromDate(pausedUntil!) : null,
@@ -167,16 +182,20 @@ class SubscriptionModel extends HiveObject {
     double? pricePerDelivery,
     int? completedDeliveries,
     int? pendingDeliveries,
+    List<String>? deliverySlots,
+    String? frequencyStr,
   }) => SubscriptionModel(
     id: id, vendorId: vendorId, customerId: customerId,
     customerName: customerName, serviceTypeStr: serviceTypeStr,
-    frequencyStr: frequencyStr,
+    frequencyStr:       frequencyStr ?? this.frequencyStr,
     statusStr:          statusStr ?? this.statusStr,
     quantity:           quantity ?? this.quantity,
     unit: unit,
     pricePerUnit:       pricePerUnit ?? this.pricePerUnit,
     pricePerDelivery:   pricePerDelivery ?? this.pricePerDelivery,
-    deliverySlot: deliverySlot, startDate: startDate, endDate: endDate,
+    deliverySlot:       deliverySlot,
+    deliverySlots:      deliverySlots ?? this.deliverySlots,
+    startDate: startDate, endDate: endDate,
     pausedUntil:        pausedUntil ?? this.pausedUntil,
     nextDeliveryDate:   nextDeliveryDate ?? this.nextDeliveryDate,
     customDays: customDays,

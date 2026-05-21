@@ -172,9 +172,6 @@ class AddDeliveryController extends GetxController {
       amount:          amount,
       notes:           notes,
       // Pass subscription ID when created from subscription tab
-      subscriptionId:  sub?.id,
-      scheduledDate:   scheduledDate.value,
-      deliverySlot:    slotCtrl.text.trim(),
     );
 
     isSubmitting.value = false;

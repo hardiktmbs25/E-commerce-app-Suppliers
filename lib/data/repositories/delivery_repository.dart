@@ -9,6 +9,7 @@ import '../../services/connectivity_service.dart';
 import '../../services/local_storage_service.dart';
 import '../models/delivery_model.dart';
 import '../models/sync_action_model.dart';
+import '../models/bill_entry_model.dart';
 
 class DeliveryRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -17,30 +18,37 @@ class DeliveryRepository {
   String _col(String vendorId) =>
       '${AppConstants.colVendors}/$vendorId/${AppConstants.colDeliveries}';
 
+  String _billEntriesCol(String vid) =>
+      '${AppConstants.colVendors}/$vid/${AppConstants.colBillEntries}';
+
+  String _subscriptionsCol(String vid) =>
+      '${AppConstants.colVendors}/$vid/${AppConstants.colSubscriptions}';
+
+  String _customersCol(String vid) =>
+      '${AppConstants.colVendors}/$vid/${AppConstants.colCustomers}';
+
   // ── Today's deliveries stream ──────────────────────────────────────────
   Stream<List<DeliveryModel>> watchTodayDeliveries(String vendorId) {
     final today = DateTime.now();
     final start = DateTime(today.year, today.month, today.day);
     final end   = DateTime(today.year, today.month, today.day, 23, 59, 59);
 
-    // Single orderBy avoids requiring a composite Firestore index.
-    // routeOrder sorting is done in-memory.
     return _db
         .collection(_col(vendorId))
         .where('scheduledDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
         .where('scheduledDate', isLessThanOrEqualTo: Timestamp.fromDate(end))
         .orderBy('scheduledDate')
+        .orderBy('routeOrder')
         .snapshots()
         .map((snap) {
-      final deliveries = snap.docs
-          .map((d) => DeliveryModel.fromFirestore(d))
-          .toList()
-        ..sort((a, b) => a.routeOrder.compareTo(b.routeOrder));
+      final deliveries = snap.docs.map((d) => DeliveryModel.fromFirestore(d)).toList();
       LocalStorageService.saveDeliveries(deliveries);
       return deliveries;
+    })
+        .handleError((e) {
+      AppLogger.e('watchTodayDeliveries error', e);
+      return LocalStorageService.getTodayDeliveries();
     });
-    // handleError removed — it kills the stream silently.
-    // Errors handled in controller listen() onError instead.
   }
 
   // ── Local today's deliveries (offline fallback) ────────────────────────
@@ -54,47 +62,97 @@ class DeliveryRepository {
       DeliveryStatus newStatus, {
         String? notes,
       }) async {
+    final now     = DateTime.now();
     final updated = delivery.copyWith(
       statusStr:   newStatus.name,
-      deliveredAt: newStatus == DeliveryStatus.delivered ? DateTime.now() : null,
+      deliveredAt: newStatus == DeliveryStatus.delivered ? now : null,
       notes:       notes,
       isSynced:    _connectivity.isOnline.value,
     );
 
-    // 1. Update local cache immediately (UI reflects change instantly)
+    // 1. Update local cache immediately so UI reflects change instantly
     await LocalStorageService.saveDelivery(updated);
 
     final payload = {
       'status':      newStatus.name,
       'deliveredAt': newStatus == DeliveryStatus.delivered
-          ? DateTime.now().toIso8601String()
-          : null,
+          ? now.toIso8601String() : null,
       'notes':       notes,
-      'updatedAt':   DateTime.now().toIso8601String(),
+      'updatedAt':   now.toIso8601String(),
     };
 
     if (_connectivity.isOnline.value) {
       try {
-        // Use FieldValue.serverTimestamp() for direct Firestore writes
-        final firestorePayload = {
-          'status':      newStatus.name,
-          'deliveredAt': newStatus == DeliveryStatus.delivered
-              ? FieldValue.serverTimestamp()
-              : null,
-          'notes':       notes,
-          'updatedAt':   FieldValue.serverTimestamp(),
-        };
-        await _db.collection(_col(vendorId)).doc(delivery.id).update(firestorePayload);
-        // Mark as synced in local cache
+        final batch = _db.batch();
+
+        // 2a. Update delivery status in Firestore
+        batch.update(
+          _db.collection(_col(vendorId)).doc(delivery.id),
+          {
+            'status':      newStatus.name,
+            'deliveredAt': newStatus == DeliveryStatus.delivered
+                ? FieldValue.serverTimestamp() : null,
+            'notes':       notes,
+            'updatedAt':   FieldValue.serverTimestamp(),
+          },
+        );
+
+        // 2b. If delivered → create bill entry + update counters
+        if (newStatus == DeliveryStatus.delivered) {
+          // Create bill entry — one entry per delivered delivery
+          final billId = const Uuid().v4();
+          final billEntry = BillEntryModel(
+            id:             billId,
+            vendorId:       vendorId,
+            customerId:     delivery.customerId,
+            customerName:   delivery.customerName,
+            deliveryId:     delivery.id,
+            subscriptionId: delivery.subscriptionId,
+            serviceType:    delivery.serviceTypeStr,
+            quantity:       delivery.quantity,
+            unit:           delivery.unit,
+            amount:         delivery.amount,
+            deliveredAt:    now,
+            isExtraOrder:   delivery.isExtraOrder,
+            createdAt:      now,
+          );
+          batch.set(
+            _db.collection(_billEntriesCol(vendorId)).doc(billId),
+            billEntry.toFirestore(),
+          );
+
+          // Update subscription: increment completedDeliveries
+          if (delivery.subscriptionId != null) {
+            batch.update(
+              _db.collection(_subscriptionsCol(vendorId)).doc(delivery.subscriptionId!),
+              {
+                'completedDeliveries': FieldValue.increment(1),
+                'updatedAt':           FieldValue.serverTimestamp(),
+              },
+            );
+          }
+
+          // Update customer pendingAmount (running unpaid balance)
+          batch.update(
+            _db.collection(_customersCol(vendorId)).doc(delivery.customerId),
+            {
+              'pendingAmount': FieldValue.increment(delivery.amount),
+              'updatedAt':     FieldValue.serverTimestamp(),
+            },
+          );
+        }
+
+        await batch.commit();
         await LocalStorageService.saveDelivery(updated.copyWith(isSynced: true));
-        AppLogger.i('Delivery ${delivery.id} marked ${newStatus.name} online');
+        AppLogger.i('Delivery ${delivery.id} => ${newStatus.name} + bill entry saved');
         return const Result.success(null);
       } catch (e) {
-        AppLogger.e('updateDeliveryStatus Firestore error, queuing', e);
+        AppLogger.e('updateDeliveryStatus error, queuing offline', e);
         await _enqueueMarkDelivery(vendorId, delivery.id, payload);
         return const Result.success(null);
       }
     } else {
+      // Offline: queue; bill entry created when sync runs
       await _enqueueMarkDelivery(vendorId, delivery.id, payload);
       AppLogger.i('Delivery ${delivery.id} queued offline');
       return const Result.success(null);
@@ -155,7 +213,7 @@ class DeliveryRepository {
     }
   }
 
-  // ── Place extra order / add manual delivery ────────────────────────────
+  // ── Place extra order ──────────────────────────────────────────────────
   Future<Result<DeliveryModel>> placeExtraOrder({
     required String vendorId,
     required String customerId,
@@ -166,9 +224,6 @@ class DeliveryRepository {
     required String unit,
     required double amount,
     String? notes,
-    String? subscriptionId,
-    DateTime? scheduledDate,
-    String? deliverySlot,
   }) async {
     final id = const Uuid().v4();
     final now = DateTime.now();
@@ -178,14 +233,12 @@ class DeliveryRepository {
       customerId:      customerId,
       customerName:    customerName,
       customerAddress: customerAddress,
-      subscriptionId:  subscriptionId,
       serviceTypeStr:  serviceType,
       quantity:        quantity,
       unit:            unit,
       amount:          amount,
-      scheduledDate:   scheduledDate ?? now,
-      deliverySlot:    deliverySlot ?? '07:00 AM',
-      isExtraOrder:    subscriptionId == null, // true only for truly manual
+      scheduledDate:   now,
+      isExtraOrder:    true,
       notes:           notes,
       createdAt:       now,
       updatedAt:       now,

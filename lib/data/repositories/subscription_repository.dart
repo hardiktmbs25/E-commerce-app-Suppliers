@@ -1,8 +1,15 @@
 // lib/data/repositories/subscription_repository.dart
+//
+// CHANGES:
+//  • createSubscription now accepts deliverySlots + startDate params.
+//  • Passes deliverySlots to SubscriptionModel and Firestore.
+//  • Result<T> kept identical to existing project pattern.
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/service_constants.dart';
 import '../../core/errors/failures.dart';
 import '../../core/utils/logger.dart';
 import '../../services/connectivity_service.dart';
@@ -17,7 +24,7 @@ class SubscriptionRepository {
   String _col(String vendorId) =>
       '${AppConstants.colVendors}/$vendorId/${AppConstants.colSubscriptions}';
 
-  // ── Realtime stream ────────────────────────────────────────────────────
+  // ── Realtime stream ──────────────────────────────────────────────────────
   Stream<List<SubscriptionModel>> watchSubscriptions(String vendorId) {
     return _db
         .collection(_col(vendorId))
@@ -40,7 +47,7 @@ class SubscriptionRepository {
     });
   }
 
-  // ── Fetch subscriptions for a specific customer ────────────────────────
+  // ── Fetch for customer ───────────────────────────────────────────────────
   Future<Result<List<SubscriptionModel>>> fetchCustomerSubscriptions(
       String vendorId, String customerId) async {
     try {
@@ -56,7 +63,7 @@ class SubscriptionRepository {
     }
   }
 
-  // ── Create subscription ────────────────────────────────────────────────
+  // ── Create ───────────────────────────────────────────────────────────────
   Future<Result<SubscriptionModel>> createSubscription({
     required String vendorId,
     required String customerId,
@@ -67,11 +74,20 @@ class SubscriptionRepository {
     required String unit,
     required double pricePerUnit,
     required String deliverySlot,
+    List<String> deliverySlots = const [],
     List<int> customDays = const [],
     String? notes,
+    DateTime? startDate,
   }) async {
     final id  = const Uuid().v4();
     final now = DateTime.now();
+    final start = startDate ?? now;
+
+    // Ensure deliverySlots is never empty
+    final effectiveSlots = deliverySlots.isNotEmpty
+        ? deliverySlots
+        : [deliverySlot.isNotEmpty ? deliverySlot : '07:00 AM'];
+
     final sub = SubscriptionModel(
       id:               id,
       vendorId:         vendorId,
@@ -83,24 +99,26 @@ class SubscriptionRepository {
       unit:             unit,
       pricePerUnit:     pricePerUnit,
       pricePerDelivery: quantity * pricePerUnit,
-      deliverySlot:     deliverySlot,
-      startDate:        now,
+      deliverySlot:     effectiveSlots.first,
+      deliverySlots:    effectiveSlots,
+      startDate:        start,
       customDays:       customDays,
       notes:            notes,
       createdAt:        now,
       updatedAt:        now,
     );
 
-    await LocalStorageService.saveSubscriptions(
-        [...LocalStorageService.getSubscriptions(), sub]);
+    // Write to local cache immediately (offline-first)
+    await LocalStorageService.saveSubscription(sub);
 
     if (_connectivity.isOnline.value) {
       try {
         await _db.collection(_col(vendorId)).doc(id).set(sub.toFirestore());
         return Result.success(sub);
       } catch (e) {
+        AppLogger.e('createSubscription Firestore error – queued', e);
         await _enqueueCreate(vendorId, id, sub);
-        return Result.success(sub);
+        return Result.success(sub); // still succeeds offline
       }
     } else {
       await _enqueueCreate(vendorId, id, sub);
@@ -108,21 +126,20 @@ class SubscriptionRepository {
     }
   }
 
-  // ── Pause subscription ─────────────────────────────────────────────────
+  // ── Pause ────────────────────────────────────────────────────────────────
   Future<Result<void>> pauseSubscription(
       String vendorId, String subId, DateTime? resumeDate) async {
-    final payload = {
+    return _updateSubscription(vendorId, subId, {
       'status': SubscriptionStatus.paused.name,
-      'pausedUntil': resumeDate != null
-          ? Timestamp.fromDate(resumeDate)
-          : null,
+      'pausedUntil':
+      resumeDate != null ? Timestamp.fromDate(resumeDate) : null,
       'updatedAt': FieldValue.serverTimestamp(),
-    };
-    return _updateSubscription(vendorId, subId, payload);
+    });
   }
 
-  // ── Resume subscription ────────────────────────────────────────────────
-  Future<Result<void>> resumeSubscription(String vendorId, String subId) async {
+  // ── Resume ───────────────────────────────────────────────────────────────
+  Future<Result<void>> resumeSubscription(
+      String vendorId, String subId) async {
     return _updateSubscription(vendorId, subId, {
       'status': SubscriptionStatus.active.name,
       'pausedUntil': null,
@@ -130,13 +147,16 @@ class SubscriptionRepository {
     });
   }
 
-  // ── Cancel subscription ────────────────────────────────────────────────
-  Future<Result<void>> cancelSubscription(String vendorId, String subId) async {
+  // ── Cancel ───────────────────────────────────────────────────────────────
+  Future<Result<void>> cancelSubscription(
+      String vendorId, String subId) async {
     return _updateSubscription(vendorId, subId, {
       'status': SubscriptionStatus.cancelled.name,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
+
+  // ── Internal helpers ─────────────────────────────────────────────────────
 
   Future<Result<void>> _updateSubscription(
       String vendorId, String subId, Map<String, dynamic> payload) async {

@@ -1,43 +1,62 @@
-// lib/modules/subscriptions/add/add_subscription_controller.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
+// lib/module/subscriptions/add/add_subscription_controller.dart
+//
+// CHANGES:
+//  1. Vendor's serviceType is read from LocalStorageService to auto-restrict
+//     service options to only what this vendor provides.
+//  2. selectedUnit auto-updates when selectedService changes via a reaction.
+//  3. Uses new DeliveryFrequency / FrequencyConstants.
+//  4. deliveryTimeSlots: a RxList<String> that grows/shrinks based on
+//     frequency (1 slot = once daily, 2 = twice daily, 3 = thrice daily).
+//  5. Customer validation shows a clear snackbar, prevents save.
+//  6. Form reset on onClose.
+//  7. No direct Firestore in controller – delegates to SubscriptionRepository.
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/service_constants.dart';
 import '../../../data/models/customer_model.dart';
 import '../../../data/models/subscription_model.dart';
+import '../../../data/repositories/subscription_repository.dart';
 import '../../../services/delivery_scheduler_service.dart';
 import '../../../services/local_storage_service.dart';
 
 class AddSubscriptionController extends GetxController {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final SubscriptionRepository _repo = Get.find<SubscriptionRepository>();
   final DeliverySchedulerService _scheduler = Get.find<DeliverySchedulerService>();
 
+  // ── Form keys & controllers ─────────────────────────────────────────────
   final formKey          = GlobalKey<FormState>();
   final quantityCtrl     = TextEditingController(text: '1');
   final pricePerUnitCtrl = TextEditingController();
-  final slotCtrl         = TextEditingController(text: '07:00 AM');
   final notesCtrl        = TextEditingController();
 
-  final selectedCustomer  = Rxn<CustomerModel>();
-  final selectedService   = 'milk'.obs;
-  final selectedFrequency = SubscriptionFrequency.daily.obs;
-  final selectedUnit      = 'litre'.obs;
-  final selectedCustomDays = <int>[].obs; // for custom frequency
-  final startDate         = DateTime.now().obs;
-  final isLoading         = false.obs;
+  // ── Observable state ────────────────────────────────────────────────────
+  final selectedCustomer   = Rxn<CustomerModel>();
+  final selectedService    = ''.obs;          // set in onInit from vendor
+  final selectedFrequency  = DeliveryFrequency.onceDaily.obs;
+  final selectedUnit       = ''.obs;          // auto-set when service changes
+  final startDate          = DateTime.now().obs;
+  final isLoading          = false.obs;
 
+  /// Delivery time slot list – length matches timeSlotsRequired for frequency.
+  final deliveryTimeSlots  = <String>[].obs;
+
+  // ── Derived ─────────────────────────────────────────────────────────────
   String? get vendorId => LocalStorageService.getVendor()?.id;
+
+  /// The single service this vendor offers.
+  String get vendorService =>
+      LocalStorageService.getVendor()?.serviceTypeStr ?? ServiceConstants.custom;
 
   List<CustomerModel> get customers =>
       LocalStorageService.getCustomers().where((c) => c.isActive).toList();
 
-  final unitOptions      = ['litre', 'packet', 'copy', 'box', 'kg', 'piece'];
-  final serviceOptions   = ['milk', 'water', 'newspaper', 'tiffin', 'grocery', 'custom'];
-  final frequencyOptions = SubscriptionFrequency.values;
+  List<String> get unitOptions => ServiceConstants.unitsFor(selectedService.value);
 
-  final dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  int get requiredSlotCount =>
+      FrequencyConstants.timeSlotsRequired(selectedFrequency.value);
 
   double get pricePerDelivery {
     final q = double.tryParse(quantityCtrl.text) ?? 1;
@@ -45,15 +64,59 @@ class AddSubscriptionController extends GetxController {
     return q * p;
   }
 
-  String? validateRequired(String? v, String field) =>
-      v == null || v.trim().isEmpty ? '$field is required' : null;
+  // ── Lifecycle ────────────────────────────────────────────────────────────
 
-  String? validateNumber(String? v, String field) {
-    if (v == null || v.isEmpty) return '$field is required';
-    if (double.tryParse(v) == null || double.parse(v) <= 0) {
-      return 'Enter a valid number';
+  @override
+  void onInit() {
+    super.onInit();
+
+    // Lock service to vendor's service type
+    final service = vendorService;
+    selectedService.value = service;
+    selectedUnit.value    = ServiceConstants.defaultUnit(service);
+
+    // Initialise with 1 empty time slot
+    _syncSlotCount();
+
+    // When frequency changes → adjust slot count
+    ever(selectedFrequency, (_) => _syncSlotCount());
+
+    // When service changes → reset unit to default for that service
+    ever(selectedService, (s) {
+      final units = ServiceConstants.unitsFor(s);
+      if (!units.contains(selectedUnit.value)) {
+        selectedUnit.value = ServiceConstants.defaultUnit(s);
+      }
+    });
+  }
+
+  // ── Slot management ──────────────────────────────────────────────────────
+
+  void _syncSlotCount() {
+    final needed = requiredSlotCount;
+    while (deliveryTimeSlots.length < needed) {
+      deliveryTimeSlots.add('');
     }
-    return null;
+    while (deliveryTimeSlots.length > needed) {
+      deliveryTimeSlots.removeLast();
+    }
+  }
+
+  Future<void> pickTimeSlot(int index) async {
+    final picked = await showTimePicker(
+      context: Get.context!,
+      initialTime: TimeOfDay.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(primary: AppColors.primary),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+    final formatted = picked.format(Get.context!);
+    deliveryTimeSlots[index] = formatted;
+    deliveryTimeSlots.refresh();
   }
 
   Future<void> pickStartDate() async {
@@ -72,85 +135,144 @@ class AddSubscriptionController extends GetxController {
     if (picked != null) startDate.value = picked;
   }
 
-  Future<void> save() async {
-    if (!formKey.currentState!.validate()) return;
+  // ── Validation ───────────────────────────────────────────────────────────
+
+  String? validateNumber(String? v, String field) {
+    if (v == null || v.trim().isEmpty) return '$field is required';
+    final parsed = double.tryParse(v.trim());
+    if (parsed == null || parsed <= 0) return 'Enter a valid number';
+    return null;
+  }
+
+  bool _validateAll() {
     if (selectedCustomer.value == null) {
-      Get.snackbar('Error', 'Please select a customer.',
+      Get.snackbar(
+        '⚠️ Customer Required',
+        'Please choose a customer before saving.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.all(12),
+      );
+      return false;
+    }
+
+    if (!formKey.currentState!.validate()) return false;
+
+    // Validate all required time slots are filled
+    for (int i = 0; i < requiredSlotCount; i++) {
+      if (deliveryTimeSlots.length <= i || deliveryTimeSlots[i].isEmpty) {
+        Get.snackbar(
+          '⚠️ Delivery Time Required',
+          requiredSlotCount > 1
+              ? 'Please set all ${requiredSlotCount} delivery times.'
+              : 'Please set a delivery time.',
           snackPosition: SnackPosition.TOP,
           backgroundColor: AppColors.error,
-          colorText: Colors.white);
-      return;
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(12),
+        );
+        return false;
+      }
     }
-    if (selectedFrequency.value == SubscriptionFrequency.custom &&
-        selectedCustomDays.isEmpty) {
-      Get.snackbar('Error', 'Please select at least one delivery day.',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: AppColors.error,
-          colorText: Colors.white);
-      return;
-    }
+
+    return true;
+  }
+
+  // ── Save ─────────────────────────────────────────────────────────────────
+
+  Future<void> save() async {
+    if (!_validateAll()) return;
 
     isLoading.value = true;
 
-    final id  = const Uuid().v4();
-    final now = DateTime.now();
-    final customer = selectedCustomer.value!;
-
-    final sub = SubscriptionModel(
-      id:               id,
-      vendorId:         vendorId!,
-      customerId:       customer.id,
-      customerName:     customer.name,
-      serviceTypeStr:   selectedService.value,
-      frequencyStr:     selectedFrequency.value.name,
-      quantity:         double.parse(quantityCtrl.text),
-      unit:             selectedUnit.value,
-      pricePerUnit:     double.parse(pricePerUnitCtrl.text),
-      pricePerDelivery: pricePerDelivery,
-      deliverySlot:     slotCtrl.text.trim().isEmpty ? '07:00 AM' : slotCtrl.text.trim(),
-      startDate:        startDate.value,
-      customDays:       selectedCustomDays.toList(),
-      notes:            notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
-      createdAt:        now,
-      updatedAt:        now,
-    );
-
     try {
-      // 1. Save subscription to Firestore
-      final col = '${AppConstants.colVendors}/$vendorId/${AppConstants.colSubscriptions}';
-      await _db.collection(col).doc(id).set(sub.toFirestore());
+      final id      = const Uuid().v4();
+      final now     = DateTime.now();
+      final customer = selectedCustomer.value!;
+      final slots    = deliveryTimeSlots.toList();
 
-      // 2. Save to local cache so scheduler can access it immediately
-      await LocalStorageService.saveSubscription(sub);
+      final sub = SubscriptionModel(
+        id:               id,
+        vendorId:         vendorId!,
+        customerId:       customer.id,
+        customerName:     customer.name,
+        serviceTypeStr:   selectedService.value,
+        frequencyStr:     FrequencyConstants.toStr(selectedFrequency.value),
+        quantity:         double.parse(quantityCtrl.text.trim()),
+        unit:             selectedUnit.value,
+        pricePerUnit:     double.parse(pricePerUnitCtrl.text.trim()),
+        pricePerDelivery: pricePerDelivery,
+        deliverySlot:     slots.first,      // legacy field
+        deliverySlots:    slots,
+        startDate:        startDate.value,
+        notes:            notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+        createdAt:        now,
+        updatedAt:        now,
+      );
 
-      // 3. Immediately generate today's delivery for this subscription
-      //    (if it should deliver today based on frequency)
-      await _scheduler.generateForNewSubscription(
-          vendorId!, sub, customer.address);
+      final result = await _repo.createSubscription(
+        vendorId:      vendorId!,
+        customerId:    customer.id,
+        customerName:  customer.name,
+        serviceType:   sub.serviceTypeStr,
+        frequency:     sub.frequencyStr,
+        quantity:      sub.quantity,
+        unit:          sub.unit,
+        pricePerUnit:  sub.pricePerUnit,
+        deliverySlot:  sub.deliverySlot,
+        deliverySlots: sub.deliverySlots,
+        notes:         sub.notes,
+        startDate:     sub.startDate,
+      );
 
-      Get.back(result: sub);
-      Get.snackbar(
-        '🎉 Subscription Added',
-        '${customer.name} subscribed to ${sub.serviceTypeStr}.'
-            '${sub.shouldDeliverOn(now) ? " Today\'s delivery added!" : ""}',
-        snackPosition: SnackPosition.TOP,
-        duration: const Duration(seconds: 3),
+      result.fold(
+            (f) {
+          Get.snackbar(
+            '❌ Error',
+            f.message,
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: AppColors.error,
+            colorText: Colors.white,
+          );
+        },
+            (saved) async {
+          await _scheduler.generateForNewSubscription(
+            vendorId!,
+            saved,
+            customer.address,
+          );
+
+          Get.back(result: saved);
+
+          Get.snackbar(
+            '✅ Subscription Added',
+            '${customer.name} subscription created successfully',
+            snackPosition: SnackPosition.TOP,
+          );
+        },
       );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to save subscription. Please try again.',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: AppColors.error,
-          colorText: Colors.white);
+      Get.snackbar(
+        '❌ Error',
+        'An unexpected error occurred.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppColors.error,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+      );
+    } finally {
+      isLoading.value = false;
     }
-
-    isLoading.value = false;
   }
+
+  // ── Cleanup ──────────────────────────────────────────────────────────────
 
   @override
   void onClose() {
     quantityCtrl.dispose();
     pricePerUnitCtrl.dispose();
-    slotCtrl.dispose();
     notesCtrl.dispose();
     super.onClose();
   }

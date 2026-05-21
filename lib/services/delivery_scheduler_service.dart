@@ -1,4 +1,5 @@
 // lib/services/delivery_scheduler_service.dart
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
@@ -10,33 +11,63 @@ import '../services/local_storage_service.dart';
 
 /// Generates ONE delivery per subscription per valid scheduled period.
 ///
-/// Rules:
-///   daily        → 1 delivery per calendar day
-///   alternateDay → 1 delivery every 2 days (based on startDate diff)
-///   weekdays     → 1 delivery Mon–Fri only
-///   weekends     → 1 delivery Sat–Sun only
-///   weekly       → 1 delivery on the same weekday as startDate, once per week
-///   custom       → 1 delivery on selected weekdays only
+/// Schedule logic per frequency:
+///   daily        → every calendar day
+///   alternateDay → every 2 days from startDate
+///   weekdays     → Mon–Fri only
+///   weekends     → Sat–Sun only
+///   weekly       → once per week on same weekday as startDate
+///   custom       → only on selected weekdays (0=Mon … 6=Sun)
 ///
-/// A delivery is NEVER created twice for the same subscription on the same
-/// calendar day, regardless of how many times refresh is called.
+/// Never creates duplicate deliveries — checks both local Hive cache
+/// AND Firestore before writing.
+///
+/// Also handles next-day generation: when app opens or midnight passes,
+/// runs automatically for today if not yet done.
 class DeliverySchedulerService extends GetxService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  final RxBool isGenerating = false.obs;
+  final RxBool  isGenerating = false.obs;
+  Timer?        _midnightTimer;
 
-  String _deliveriesCol(String vendorId) =>
-      '${AppConstants.colVendors}/$vendorId/${AppConstants.colDeliveries}';
+  String _deliveriesCol(String vid) =>
+      '${AppConstants.colVendors}/$vid/${AppConstants.colDeliveries}';
 
-  // Key stored in Hive settings to track last-generated date
-  static String _lastGenKey(String vendorId) => 'scheduler_last_gen_$vendorId';
+  static String _lastGenKey(String vid) => 'scheduler_last_gen_$vid';
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────
+
+  @override
+  void onReady() {
+    super.onReady();
+    _scheduleMidnightRun();
+  }
+
+  /// Schedule a timer that fires at midnight to auto-generate next day's deliveries.
+  void _scheduleMidnightRun() {
+    _midnightTimer?.cancel();
+    final now      = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day + 1); // next midnight
+    final diff     = midnight.difference(now);
+
+    AppLogger.i('Scheduler: next midnight run in ${diff.inHours}h ${diff.inMinutes % 60}m');
+
+    _midnightTimer = Timer(diff, () async {
+      final vendorId = LocalStorageService.vendorId;
+      if (vendorId != null) {
+        AppLogger.i('Scheduler: midnight timer fired — generating for new day');
+        await _generateForDate(vendorId, DateTime.now());
+      }
+      _scheduleMidnightRun(); // reschedule for next midnight
+    });
+  }
 
   // ── Public API ─────────────────────────────────────────────────────────
 
-  /// Called on app open / delivery screen open.
-  /// Skips entirely if already run today — safe to call multiple times.
+  /// Safe to call on every app open / screen open.
+  /// Runs only once per calendar day per vendor. Skips if already done.
   Future<void> runIfNeeded(String vendorId) async {
-    final today = _dateKey(DateTime.now());
+    final today   = _dateKey(DateTime.now());
     final lastGen = LocalStorageService.getSetting<String>(_lastGenKey(vendorId));
     if (lastGen == today) {
       AppLogger.i('Scheduler: already ran for $today — skipping.');
@@ -46,36 +77,39 @@ class DeliverySchedulerService extends GetxService {
   }
 
   /// Called immediately after a NEW subscription is saved.
-  /// Creates today's delivery for that subscription only if:
-  ///   1. The subscription should deliver today (frequency check)
-  ///   2. No delivery already exists for it today (duplicate check)
+  /// Creates today's delivery for that subscription only if it should deliver today.
   Future<void> generateForNewSubscription(
       String vendorId, SubscriptionModel sub, String customerAddress) async {
     final today = DateTime.now();
     if (!sub.isActive || !sub.shouldDeliverOn(today)) return;
 
-    // Local duplicate check first (fast, no Firestore call)
-    if (_localDeliveryExistsForSub(sub.id, today)) {
-      AppLogger.i('Scheduler: local delivery already exists for sub ${sub.id}');
-      return;
-    }
-
-    // Firestore duplicate check (definitive)
+    if (_localDeliveryExistsForSub(sub.id)) return;
     final exists = await _firestoreDeliveryExistsForSub(vendorId, sub.id, today);
     if (exists) return;
 
     final routeOrder = LocalStorageService.getTodayDeliveries().length;
-    final delivery = _buildDelivery(
+    final delivery   = _buildDelivery(
       vendorId: vendorId, sub: sub,
       customerAddress: customerAddress,
       date: today, routeOrder: routeOrder,
     );
 
     try {
-      await _db
-          .collection(_deliveriesCol(vendorId))
-          .doc(delivery.id)
-          .set(delivery.toFirestore());
+      final batch = _db.batch();
+      batch.set(
+        _db.collection(_deliveriesCol(vendorId)).doc(delivery.id),
+        delivery.toFirestore(),
+      );
+      // Update subscription's nextDeliveryDate
+      final nextDate = _nextDeliveryDate(sub, today);
+      batch.update(
+        _db.collection(_subscriptionsCol(vendorId)).doc(sub.id),
+        {
+          'nextDeliveryDate': Timestamp.fromDate(nextDate),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+      );
+      await batch.commit();
       await LocalStorageService.saveDelivery(delivery);
       AppLogger.i('Scheduler: created delivery for new sub ${sub.id}');
     } catch (e) {
@@ -86,78 +120,81 @@ class DeliverySchedulerService extends GetxService {
   // ── Core generation ────────────────────────────────────────────────────
 
   Future<int> _generateForDate(String vendorId, DateTime date) async {
-    if (isGenerating.value) {
-      AppLogger.i('Scheduler: already running, skipping duplicate call.');
-      return 0;
-    }
+    if (isGenerating.value) return 0;
     isGenerating.value = true;
 
     try {
-      final subscriptions = LocalStorageService.getSubscriptions();
+      final subscriptions = LocalStorageService.getSubscriptions()
+          .where((s) => s.isActive)
+          .toList();
+
       if (subscriptions.isEmpty) {
-        AppLogger.i('Scheduler: no subscriptions found.');
         _markGeneratedToday(vendorId);
         isGenerating.value = false;
         return 0;
       }
 
-      // Step 1: Get all subscriptionIds that already have a delivery today
-      // Check BOTH local cache and Firestore to be bulletproof
-      final existingLocal    = _getLocalSubIdsForDate(date);
+      // Dual-layer duplicate check
+      final existingLocal     = _getLocalSubIdsForDate(date);
       final existingFirestore = await _getFirestoreSubIdsForDate(vendorId, date);
-      final existingSubIds   = {...existingLocal, ...existingFirestore};
+      final existingSubIds    = {...existingLocal, ...existingFirestore};
 
-      AppLogger.i('Scheduler: ${existingSubIds.length} subscriptions already '
-          'have deliveries for ${_dateKey(date)}');
-
-      // Step 2: Customer address map
       final customerMap = {
         for (final c in LocalStorageService.getCustomers()) c.id: c.address
       };
 
-      // Step 3: Build deliveries for subscriptions that don't have one yet
       final toCreate = <DeliveryModel>[];
       int routeOrder = existingSubIds.length;
 
       for (final sub in subscriptions) {
-        if (!sub.isActive) continue;
-        if (!sub.shouldDeliverOn(date)) continue;
-        if (existingSubIds.contains(sub.id)) continue; // already exists — skip
+        // Skip if endDate passed
+        if (sub.endDate != null &&
+            date.isAfter(sub.endDate!.add(const Duration(days: 1)))) continue;
 
-        final delivery = _buildDelivery(
+        // Skip if before startDate
+        if (date.isBefore(DateTime(
+            sub.startDate.year, sub.startDate.month, sub.startDate.day))) continue;
+
+        if (!sub.shouldDeliverOn(date)) continue;
+        if (existingSubIds.contains(sub.id)) continue;
+
+        toCreate.add(_buildDelivery(
           vendorId:        vendorId,
           sub:             sub,
           customerAddress: customerMap[sub.customerId] ?? '',
           date:            date,
           routeOrder:      routeOrder++,
-        );
-        toCreate.add(delivery);
+        ));
       }
 
       if (toCreate.isEmpty) {
-        AppLogger.i('Scheduler: nothing new to create for ${_dateKey(date)}.');
+        AppLogger.i('Scheduler: no new deliveries needed for ${_dateKey(date)}');
         _markGeneratedToday(vendorId);
         isGenerating.value = false;
         return 0;
       }
 
-      // Step 4: Batch write to Firestore (max 500 per batch)
-      final chunks = _chunk(toCreate, 499);
-      for (final chunk in chunks) {
+      // Batch write — Firestore max 500 per batch
+      for (final chunk in _chunk(toCreate, 499)) {
         final batch = _db.batch();
         for (final d in chunk) {
-          batch.set(_db.collection(_deliveriesCol(vendorId)).doc(d.id), d.toFirestore());
+          batch.set(
+            _db.collection(_deliveriesCol(vendorId)).doc(d.id),
+            d.toFirestore(),
+          );
         }
         await batch.commit();
-        // Also save locally
         for (final d in chunk) {
           await LocalStorageService.saveDelivery(d);
         }
       }
 
+      // Update nextDeliveryDate on each subscription
+      await _updateNextDeliveryDates(vendorId, subscriptions, date);
+
       _markGeneratedToday(vendorId);
-      AppLogger.i('Scheduler: created ${toCreate.length} new deliveries '
-          'for ${_dateKey(date)}');
+      AppLogger.i(
+          'Scheduler: created ${toCreate.length} deliveries for ${_dateKey(date)}');
       isGenerating.value = false;
       return toCreate.length;
     } catch (e) {
@@ -167,18 +204,58 @@ class DeliverySchedulerService extends GetxService {
     }
   }
 
+  // ── nextDeliveryDate management ────────────────────────────────────────
+
+  /// Calculates the next delivery date after [fromDate] for a subscription.
+  DateTime _nextDeliveryDate(SubscriptionModel sub, DateTime fromDate) {
+    var next = fromDate.add(const Duration(days: 1));
+    // Look up to 14 days ahead to find next valid date
+    for (int i = 0; i < 14; i++) {
+      if (sub.shouldDeliverOn(next)) return next;
+      next = next.add(const Duration(days: 1));
+    }
+    return next; // fallback
+  }
+
+  Future<void> _updateNextDeliveryDates(
+      String vendorId, List<SubscriptionModel> subs, DateTime today) async {
+    try {
+      // Update in batches of 499
+      for (final chunk in _chunk(subs, 499)) {
+        final batch = _db.batch();
+        for (final sub in chunk) {
+          if (!sub.shouldDeliverOn(today)) continue;
+          final next = _nextDeliveryDate(sub, today);
+          batch.update(
+            _db.collection(_subscriptionsCol(vendorId)).doc(sub.id),
+            {
+              'nextDeliveryDate':    Timestamp.fromDate(next),
+              'completedDeliveries': FieldValue.increment(0), // touch updatedAt
+              'updatedAt':           FieldValue.serverTimestamp(),
+            },
+          );
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      AppLogger.e('_updateNextDeliveryDates error', e);
+    }
+  }
+
   // ── Duplicate detection ────────────────────────────────────────────────
 
-  /// Check local Hive cache for subscriptionIds that already have a delivery today.
   Set<String> _getLocalSubIdsForDate(DateTime date) {
-    final all = LocalStorageService.getTodayDeliveries();
-    return all
+    return LocalStorageService.getTodayDeliveries()
         .where((d) => d.subscriptionId != null && !d.isExtraOrder)
         .map((d) => d.subscriptionId!)
         .toSet();
   }
 
-  /// Check Firestore for subscriptionIds that already have a delivery today.
+  bool _localDeliveryExistsForSub(String subId) {
+    return LocalStorageService.getTodayDeliveries()
+        .any((d) => d.subscriptionId == subId && !d.isExtraOrder);
+  }
+
   Future<Set<String>> _getFirestoreSubIdsForDate(
       String vendorId, DateTime date) async {
     try {
@@ -204,11 +281,6 @@ class DeliverySchedulerService extends GetxService {
     }
   }
 
-  bool _localDeliveryExistsForSub(String subId, DateTime date) {
-    return LocalStorageService.getTodayDeliveries()
-        .any((d) => d.subscriptionId == subId && !d.isExtraOrder);
-  }
-
   Future<bool> _firestoreDeliveryExistsForSub(
       String vendorId, String subId, DateTime date) async {
     try {
@@ -231,7 +303,7 @@ class DeliverySchedulerService extends GetxService {
     }
   }
 
-  // ── Build delivery model ───────────────────────────────────────────────
+  // ── Build delivery ─────────────────────────────────────────────────────
 
   DeliveryModel _buildDelivery({
     required String vendorId,
@@ -267,6 +339,9 @@ class DeliverySchedulerService extends GetxService {
 
   // ── Helpers ────────────────────────────────────────────────────────────
 
+  String _subscriptionsCol(String vid) =>
+      '${AppConstants.colVendors}/$vid/${AppConstants.colSubscriptions}';
+
   void _markGeneratedToday(String vendorId) {
     LocalStorageService.saveSetting(
         _lastGenKey(vendorId), _dateKey(DateTime.now()));
@@ -277,8 +352,15 @@ class DeliverySchedulerService extends GetxService {
   List<List<T>> _chunk<T>(List<T> list, int size) {
     final chunks = <List<T>>[];
     for (var i = 0; i < list.length; i += size) {
-      chunks.add(list.sublist(i, i + size > list.length ? list.length : i + size));
+      final end = (i + size > list.length) ? list.length : i + size;
+      chunks.add(list.sublist(i, end));
     }
     return chunks;
+  }
+
+  @override
+  void onClose() {
+    _midnightTimer?.cancel();
+    super.onClose();
   }
 }
