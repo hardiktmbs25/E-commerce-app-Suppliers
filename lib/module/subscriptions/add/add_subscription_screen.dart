@@ -12,11 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/service_constants.dart';
-import '../../../data/models/customer_model.dart';
-import '../widgets/frequency_chip.dart';
-import '../widgets/service_badge.dart';
-import '../widgets/time_slot_picker.dart';
+import '../../../data/models/plan_model.dart';
 import 'add_subscription_controller.dart';
 
 class AddSubscriptionScreen extends GetView<AddSubscriptionController> {
@@ -63,126 +59,22 @@ class AddSubscriptionScreen extends GetView<AddSubscriptionController> {
               const _Divider(),
               const SizedBox(height: 20),
 
-              // ── STEP 2: Service (locked to vendor's service) ───────────
+              // ── STEP 2: Choose Plan Templates ───────────────────────────
               _SectionHeader(
                 step: '2',
-                label: 'Service',
-                icon: Icons.local_shipping_rounded,
+                label: 'Add Plan Templates',
+                icon: Icons.assignment_outlined,
               ),
               const SizedBox(height: 10),
-              ServiceBadge(
-                service: controller.selectedService.value,
-                large: true,
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Service is set based on your account',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textHint,
-                  fontFamily: 'Poppins',
-                ),
-              ),
+              _PlanBasketSection(controller: controller),
 
               const SizedBox(height: 20),
               const _Divider(),
               const SizedBox(height: 20),
 
-              // ── STEP 3: Quantity + Unit ────────────────────────────────
+              // ── STEP 3: Start Date ─────────────────────────────────────
               _SectionHeader(
                 step: '3',
-                label: 'Quantity & Unit',
-                icon: Icons.scale_rounded,
-              ),
-              const SizedBox(height: 10),
-              Row(children: [
-                // Quantity field
-                Expanded(
-                  child: _BigInputField(
-                    label: 'Quantity',
-                    controller: controller.quantityCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                    ],
-                    validator: (v) => controller.validateNumber(v, 'Quantity'),
-                    prefix: const Icon(Icons.numbers_rounded,
-                        size: 20, color: AppColors.textHint),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Unit dropdown
-                Expanded(
-                  child: _UnitDropdown(controller: controller),
-                ),
-              ]),
-
-              const SizedBox(height: 16),
-
-              // ── Price ──────────────────────────────────────────────────
-              _BigInputField(
-                label: 'Price per Unit (₹)',
-                controller: controller.pricePerUnitCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                ],
-                validator: (v) => controller.validateNumber(v, 'Price'),
-                prefix: const Icon(Icons.currency_rupee_rounded,
-                    size: 20, color: AppColors.textHint),
-              ),
-
-              const SizedBox(height: 10),
-
-              // ── Live price preview ─────────────────────────────────────
-              if (controller.pricePerDelivery > 0)
-                _PricePreview(
-                  pricePerDelivery: controller.pricePerDelivery,
-                  frequency: controller.selectedFrequency.value,
-                ),
-
-              const SizedBox(height: 20),
-              const _Divider(),
-              const SizedBox(height: 20),
-
-              // ── STEP 4: Frequency ──────────────────────────────────────
-              _SectionHeader(
-                step: '4',
-                label: 'How often?',
-                icon: Icons.repeat_rounded,
-              ),
-              const SizedBox(height: 10),
-              FrequencyChipRow(
-                selected: controller.selectedFrequency.value,
-                onChanged: (f) => controller.selectedFrequency.value = f,
-              ),
-
-              const SizedBox(height: 20),
-              const _Divider(),
-              const SizedBox(height: 20),
-
-              // ── STEP 5: Delivery Time(s) ───────────────────────────────
-              _SectionHeader(
-                step: '5',
-                label: controller.requiredSlotCount > 1
-                    ? 'Delivery Times (${controller.requiredSlotCount} required)'
-                    : 'Delivery Time',
-                icon: Icons.schedule_rounded,
-              ),
-              const SizedBox(height: 10),
-              TimeSlotPicker(
-                slots:         controller.deliveryTimeSlots.toList(),
-                requiredCount: controller.requiredSlotCount,
-                onTapSlot:     controller.pickTimeSlot,
-              ),
-
-              const SizedBox(height: 20),
-              const _Divider(),
-              const SizedBox(height: 20),
-
-              // ── STEP 6: Start Date ─────────────────────────────────────
-              _SectionHeader(
-                step: '6',
                 label: 'Start Date',
                 icon: Icons.calendar_today_rounded,
               ),
@@ -293,7 +185,7 @@ class _CustomerPicker extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
           ),
-          child: Row(children: const [
+          child: const Row(children: [
             Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
             SizedBox(width: 10),
             Expanded(
@@ -356,52 +248,290 @@ class _CustomerPicker extends StatelessWidget {
   }
 }
 
-// Unit dropdown – auto-populated from service
-class _UnitDropdown extends StatelessWidget {
+// Plan Templates Basket Section
+class _PlanBasketSection extends StatelessWidget {
   final AddSubscriptionController controller;
-  const _UnitDropdown({required this.controller});
+  const _PlanBasketSection({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() => DropdownButtonFormField<String>(
-      value: controller.selectedUnit.value,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: 'Unit',
-        labelStyle: const TextStyle(
-            fontSize: 13, color: AppColors.textSecondary, fontFamily: 'Poppins'),
-        filled: true,
-        fillColor: AppColors.surface,
-        contentPadding:
-        const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Dropdown + Add button
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Obx(() {
+                final plans = controller.activePlans;
+                return DropdownButtonFormField<PlanModel>(
+                  value: controller.selectedDropdownPlan.value,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    ),
+                    prefixIcon: const Icon(Icons.assignment_outlined, size: 20, color: AppColors.textHint),
+                    hintText: 'Choose plan template',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary, fontFamily: 'Poppins',
+                  ),
+                  items: plans.map((p) => DropdownMenuItem<PlanModel>(
+                    value: p,
+                    child: Text('${p.name} (₹${p.pricePerDelivery.toStringAsFixed(0)})',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14, fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                        )),
+                  )).toList(),
+                  onChanged: (plan) {
+                    controller.selectedDropdownPlan.value = plan;
+                  },
+                );
+              }),
+            ),
+            const SizedBox(width: 8),
+            Obx(() {
+              final selected = controller.selectedDropdownPlan.value;
+              return SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: selected == null ? null : () => controller.addPlan(selected),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 4),
+                      Text(
+                        'Add',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide:
-          const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
+
+        const SizedBox(height: 12),
+
+        // Selected Basket Items
+        Obx(() {
+          final items = controller.selectedPlans;
+          if (items.isEmpty) {
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border, width: 0.8),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.shopping_basket_outlined, size: 28, color: AppColors.textHint),
+                  SizedBox(height: 8),
+                  Text(
+                    'No plan templates added yet.',
+                    style: TextStyle(
+                      fontFamily: 'Poppins', fontSize: 13,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    'Choose a plan above and click "Add".',
+                    style: TextStyle(
+                      fontFamily: 'Poppins', fontSize: 11,
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (_, index) {
+              final item = items[index];
+              return _BasketItemTile(
+                item: item,
+                onRemove: () => controller.removePlan(item.id),
+              );
+            },
+          );
+        }),
+
+        // Summary Box
+        Obx(() {
+          if (controller.selectedPlans.isEmpty) return const SizedBox.shrink();
+          return Column(
+            children: [
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total Delivery Rate',
+                          style: TextStyle(
+                            fontFamily: 'Poppins', fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '₹${controller.totalDeliveryRate.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontFamily: 'Poppins', fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Estimated Monthly Revenue',
+                          style: TextStyle(
+                            fontFamily: 'Poppins', fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '~₹${controller.estimatedMonthlyRevenue.toStringAsFixed(0)}/month',
+                          style: const TextStyle(
+                            fontFamily: 'Poppins', fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+}
+
+// Basket Item Tile
+class _BasketItemTile extends StatelessWidget {
+  final SelectedPlanItem item;
+  final VoidCallback onRemove;
+
+  const _BasketItemTile({required this.item, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = item.plan;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border, width: 0.8),
       ),
-      style: const TextStyle(
-        fontSize: 14, fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary, fontFamily: 'Poppins',
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.assignment_outlined, size: 20, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  plan.name,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins', fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  '${plan.quantity} ${plan.unit}  •  ${plan.frequencyStr == 'daily' ? 'Daily' : plan.frequencyStr == 'twice_daily' ? '2× Daily' : plan.frequencyStr == 'thrice_daily' ? '3× Daily' : plan.frequencyStr == 'alternate' ? 'Alt. Days' : 'Weekly'}',
+                  style: const TextStyle(
+                    fontFamily: 'Poppins', fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '₹${plan.pricePerDelivery.toStringAsFixed(0)}',
+            style: const TextStyle(
+              fontFamily: 'Poppins', fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: onRemove,
+          ),
+        ],
       ),
-      items: controller.unitOptions
-          .map((u) => DropdownMenuItem(
-        value: u,
-        child: Text(u),
-      ))
-          .toList(),
-      onChanged: (v) {
-        if (v != null) controller.selectedUnit.value = v;
-      },
-    ));
+    );
   }
 }
 
@@ -480,62 +610,6 @@ class _BigInputField extends StatelessWidget {
           borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
       ),
-    );
-  }
-}
-
-// Live price + monthly estimate preview
-class _PricePreview extends StatelessWidget {
-  final double pricePerDelivery;
-  final DeliveryFrequency frequency;
-
-  const _PricePreview({
-    required this.pricePerDelivery,
-    required this.frequency,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final monthly = pricePerDelivery *
-        FrequencyConstants.monthlyDeliveries(frequency);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(12),
-        border:
-        Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-      ),
-      child: Row(children: [
-        const Icon(Icons.info_outline_rounded,
-            size: 18, color: AppColors.primary),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '₹${pricePerDelivery.toStringAsFixed(2)} per delivery',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-              Text(
-                '~₹${monthly.toStringAsFixed(0)} estimated/month',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ]),
     );
   }
 }
