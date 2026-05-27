@@ -1,7 +1,4 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
-// ignore_for_file: type=lint
-// Hand-updated to add HiveField(22) deliverySlots.
-// Run `flutter pub run build_runner build` to regenerate fully.
 
 part of 'subscription_model.dart';
 
@@ -20,39 +17,36 @@ class SubscriptionModelAdapter extends TypeAdapter<SubscriptionModel> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return SubscriptionModel(
-      id:                   fields[0] as String,
-      vendorId:             fields[1] as String,
-      customerId:           fields[2] as String,
-      customerName:         fields[3] as String,
-      serviceTypeStr:       fields[4] as String,
-      frequencyStr:         fields[5] as String,
-      statusStr:            fields[6] as String,
-      quantity:             fields[7] as double,
-      unit:                 fields[8] as String,
-      pricePerUnit:         fields[9] as double,
-      pricePerDelivery:     fields[10] as double,
-      deliverySlot:         fields[11] as String,
-      startDate:            fields[12] as DateTime,
-      endDate:              fields[13] as DateTime?,
-      pausedUntil:          fields[14] as DateTime?,
-      nextDeliveryDate:     fields[15] as DateTime?,
-      customDays:           (fields[16] as List).cast<int>(),
-      completedDeliveries:  fields[17] as int,
-      pendingDeliveries:    fields[18] as int,
-      notes:                fields[19] as String?,
-      createdAt:            fields[20] as DateTime,
-      updatedAt:            fields[21] as DateTime,
-      // Field 22 is new – old cached objects won't have it, defaulting to [].
-      deliverySlots: fields[22] != null
-          ? (fields[22] as List).cast<String>()
-          : <String>[],
+      id: fields[0] as String,
+      vendorId: fields[1] as String,
+      customerId: fields[2] as String,
+      customerName: fields[3] as String,
+      serviceTypeStr: fields[4] as String,
+      frequencyStr: fields[5] as String,
+      statusStr: fields[6] as String,
+      quantity: fields[7] as double,
+      unit: fields[8] as String,
+      pricePerUnit: fields[9] as double,
+      pricePerDelivery: fields[10] as double,
+      deliverySlot: fields[11] as String,
+      startDate: fields[12] as DateTime,
+      endDate: fields[13] as DateTime?,
+      pausedUntil: fields[14] as DateTime?,
+      nextDeliveryDate: fields[15] as DateTime?,
+      customDays: (fields[16] as List).cast<int>(),
+      completedDeliveries: fields[17] as int,
+      pendingDeliveries: fields[18] as int,
+      notes: fields[19] as String?,
+      createdAt: fields[20] as DateTime,
+      updatedAt: fields[21] as DateTime,
+      deliverySlots: (fields[22] as List).cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, SubscriptionModel obj) {
     writer
-      ..writeByte(23) // total fields
+      ..writeByte(23)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -107,7 +101,7 @@ class SubscriptionModelAdapter extends TypeAdapter<SubscriptionModel> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is SubscriptionModelAdapter &&
-              runtimeType == other.runtimeType &&
-              typeId == other.typeId;
+      other is SubscriptionModelAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
 }

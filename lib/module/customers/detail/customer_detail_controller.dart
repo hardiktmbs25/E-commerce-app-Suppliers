@@ -7,6 +7,7 @@ import '../../../data/models/delivery_model.dart';
 import '../../../data/repositories/billing_repository.dart';
 import '../../../data/repositories/delivery_repository.dart';
 import '../../../services/local_storage_service.dart';
+import '../../../services/billing_service.dart';
 import '../../../core/utils/logger.dart';
 import '../../../routes/app_routes.dart';
 import 'package:flutter/material.dart';
@@ -71,20 +72,21 @@ class CustomerDetailController extends GetxController {
     if (vendorId == null || customer.value == null) return;
     isGeneratingBill.value = true;
     final now = DateTime.now();
-    final result = await _billingRepo.generateMonthlyInvoice(
+    final invoice = await Get.find<BillingService>().generateMonthlyBill(
       vendorId:  vendorId!,
       customer:  customer.value!,
       month:     now.month,
       year:      now.year,
     );
-    result.fold(
-          (f) => Get.snackbar('Error', f.message,
-          backgroundColor: Colors.red, colorText: Colors.white,
-          snackPosition: SnackPosition.TOP),
-          (invoice) => Get.snackbar('✅ Bill Generated',
+    if (invoice != null) {
+      Get.snackbar('✅ Bill Generated',
           'Invoice ₹${invoice.totalAmount.toStringAsFixed(0)} created.',
-          snackPosition: SnackPosition.TOP),
-    );
+          snackPosition: SnackPosition.TOP);
+    } else {
+      Get.snackbar('No Deliveries', 'No new delivered items found for this month.',
+          backgroundColor: Colors.red, colorText: Colors.white,
+          snackPosition: SnackPosition.TOP);
+    }
     isGeneratingBill.value = false;
   }
 

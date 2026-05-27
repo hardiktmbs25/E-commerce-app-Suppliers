@@ -1,0 +1,62 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "deliveries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "scheduledDate", "order": "ASCENDING" },
+        { "fieldPath": "routeOrder", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "generatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "month", "order": "ASCENDING" },
+        { "fieldPath": "year", "order": "ASCENDING" },
+        { "fieldPath": "generatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "dueDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "paidAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ledger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "subscriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "customerName", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

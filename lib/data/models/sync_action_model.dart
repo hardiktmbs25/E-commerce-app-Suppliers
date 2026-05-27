@@ -1,8 +1,11 @@
 // lib/data/models/sync_action_model.dart
+// MODIFIED: added billing sync action types.
 import 'package:hive/hive.dart';
 import '../../core/constants/app_constants.dart';
 part 'sync_action_model.g.dart';
+
 enum SyncActionType {
+  // existing
   createCustomer,
   updateCustomer,
   deleteCustomer,
@@ -11,21 +14,25 @@ enum SyncActionType {
   recordPayment,
   updateSubscription,
   placeExtraOrder,
+  createSubscription,
+  // NEW billing types ↓
+  createBill,
+  updateBill,
+  recordBillPayment,
+  createLedgerEntry,
 }
 
-/// Represents a write operation queued while the device was offline.
-/// The SyncService processes these in FIFO order when connectivity resumes.
 @HiveType(typeId: AppConstants.tidSyncAction)
 class SyncActionModel extends HiveObject {
   @HiveField(0) final String id;
   @HiveField(1) final String actionTypeStr;
-  @HiveField(2) final String collection;       // Firestore collection
-  @HiveField(3) final String? documentId;      // null for creates
+  @HiveField(2) final String collection;
+  @HiveField(3) final String? documentId;
   @HiveField(4) final Map<String, dynamic> payload;
   @HiveField(5) final DateTime createdAt;
   @HiveField(6) int retryCount;
-  @HiveField(7) bool isFailed;                 // gave up after maxRetries
-  @HiveField(8) final String? localId;         // local Hive key for optimistic update
+  @HiveField(7) bool isFailed;
+  @HiveField(8) final String? localId;
 
   SyncActionModel({
     required this.id,
@@ -40,5 +47,6 @@ class SyncActionModel extends HiveObject {
   });
 
   SyncActionType get actionType => SyncActionType.values.firstWhere(
-          (e) => e.name == actionTypeStr);
+          (e) => e.name == actionTypeStr,
+      orElse: () => SyncActionType.createBill);
 }

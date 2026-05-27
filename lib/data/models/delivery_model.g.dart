@@ -39,13 +39,15 @@ class DeliveryModelAdapter extends TypeAdapter<DeliveryModel> {
       routeOrder: fields[19] as int,
       deliverySlot: fields[20] as String,
       isExtraOrder: fields[21] as bool,
+      billGenerated: fields[22] as bool,
+      invoiceId: fields[23] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, DeliveryModel obj) {
     writer
-      ..writeByte(22)
+      ..writeByte(24)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -89,7 +91,11 @@ class DeliveryModelAdapter extends TypeAdapter<DeliveryModel> {
       ..writeByte(20)
       ..write(obj.deliverySlot)
       ..writeByte(21)
-      ..write(obj.isExtraOrder);
+      ..write(obj.isExtraOrder)
+      ..writeByte(22)
+      ..write(obj.billGenerated)
+      ..writeByte(23)
+      ..write(obj.invoiceId);
   }
 
   @override

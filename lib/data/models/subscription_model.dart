@@ -100,15 +100,51 @@ class SubscriptionModel extends HiveObject {
       pricePerDelivery * FrequencyConstants.monthlyDeliveries(frequency);
 
   bool shouldDeliverOn(DateTime date) {
+    // 1. Core status checks: must not be cancelled or expired
+    if (status == SubscriptionStatus.cancelled || status == SubscriptionStatus.expired) {
+      return false;
+    }
+
+    // Normalize dates to midnight to prevent time-skew bugs
+    final targetDate = DateTime(date.year, date.month, date.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+
+    // 2. Start date boundary check
+    if (targetDate.isBefore(start)) {
+      return false;
+    }
+
+    // 3. End date boundary check
+    if (endDate != null) {
+      final end = DateTime(endDate!.year, endDate!.month, endDate!.day);
+      if (targetDate.isAfter(end)) {
+        return false;
+      }
+    }
+
+    // 4. Pause date checks
+    if (status == SubscriptionStatus.paused) {
+      if (pausedUntil != null) {
+        final resume = DateTime(pausedUntil!.year, pausedUntil!.month, pausedUntil!.day);
+        if (targetDate.isBefore(resume)) {
+          return false;
+        }
+      } else {
+        // Paused indefinitely without a resume date
+        return false;
+      }
+    }
+
+    // 5. Frequency specific logic
     switch (frequency) {
       case DeliveryFrequency.onceDaily:
       case DeliveryFrequency.twiceDaily:
       case DeliveryFrequency.thriceDaily:
         return true;
       case DeliveryFrequency.alternateDay:
-        return date.difference(startDate).inDays % 2 == 0;
+        return targetDate.difference(start).inDays % 2 == 0;
       case DeliveryFrequency.weekly:
-        return date.weekday == startDate.weekday;
+        return targetDate.weekday == start.weekday;
     }
   }
 

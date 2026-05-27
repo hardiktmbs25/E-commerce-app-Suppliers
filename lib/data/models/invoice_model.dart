@@ -1,5 +1,9 @@
 // lib/data/models/invoice_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
+import '../../core/constants/app_constants.dart';
+
+part 'invoice_model.g.dart';
 
 enum InvoiceStatus { draft, sent, paid, partiallyPaid, overdue }
 
@@ -43,30 +47,34 @@ class InvoiceLineItem {
   };
 }
 
-class InvoiceModel {
-  final String id;
-  final String vendorId;
-  final String customerId;
-  final String customerName;
-  final String customerPhone;
-  final String customerAddress;
-  final int month;
-  final int year;
-  final String statusStr;
-  final List<InvoiceLineItem> lineItems;
-  final double subtotal;
-  final double totalDiscount;
-  final double extraCharges;
-  final double totalAmount;
-  final double paidAmount;
-  final double pendingAmount;
-  final DateTime generatedAt;
-  final DateTime dueDate;
-  final DateTime? paidAt;
-  final String? paymentMethod;
-  final String? notes;
+@HiveType(typeId: AppConstants.tidBillingModel) // Reuses tidBillingModel (5) for unified storage
+class InvoiceModel extends HiveObject {
+  @HiveField(0)  final String id;
+  @HiveField(1)  final String vendorId;
+  @HiveField(2)  final String customerId;
+  @HiveField(3)  final String customerName;
+  @HiveField(4)  final String customerPhone;
+  @HiveField(5)  final String customerAddress;
+  @HiveField(6)  final int month;
+  @HiveField(7)  final int year;
+  @HiveField(8)  final String statusStr;
+  @HiveField(9)  final List<Map<String, dynamic>> rawLineItems;
+  @HiveField(10) final double subtotal;
+  @HiveField(11) final double totalDiscount;
+  @HiveField(12) final double extraCharges;
+  @HiveField(13) final double totalAmount;
+  @HiveField(14) final double paidAmount;
+  @HiveField(15) final double pendingAmount;
+  @HiveField(16) final DateTime generatedAt;
+  @HiveField(17) final DateTime dueDate;
+  @HiveField(18) final DateTime? paidAt;
+  @HiveField(19) final String? paymentMethod;
+  @HiveField(20) final String? notes;
+  @HiveField(21) final List<String> deliveryIds;
 
-  const InvoiceModel({
+  final List<InvoiceLineItem> lineItems;
+
+  InvoiceModel({
     required this.id,
     required this.vendorId,
     required this.customerId,
@@ -76,7 +84,8 @@ class InvoiceModel {
     required this.month,
     required this.year,
     this.statusStr = 'draft',
-    required this.lineItems,
+    List<InvoiceLineItem>? lineItems,
+    List<Map<String, dynamic>>? rawLineItems,
     required this.subtotal,
     this.totalDiscount = 0,
     this.extraCharges = 0,
@@ -88,7 +97,11 @@ class InvoiceModel {
     this.paidAt,
     this.paymentMethod,
     this.notes,
-  });
+    this.deliveryIds = const [],
+  })  : lineItems = lineItems ??
+      (rawLineItems?.map((e) => InvoiceLineItem.fromMap(Map<String, dynamic>.from(e))).toList() ?? []),
+        rawLineItems = rawLineItems ??
+            (lineItems?.map((e) => e.toMap()).toList() ?? const []);
 
   InvoiceStatus get status => InvoiceStatus.values.firstWhere(
           (e) => e.name == statusStr, orElse: () => InvoiceStatus.draft);
@@ -105,8 +118,14 @@ class InvoiceModel {
     return months[month];
   }
 
+  int get totalDeliveries => deliveryIds.length;
+  String get invoiceMonth => '$monthName $year';
+
   factory InvoiceModel.fromFirestore(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+    final d = (doc.data() as Map<String, dynamic>?) ?? {};
+    final listRaw = d['lineItems'] as List<dynamic>? ?? [];
+    final rawItems = listRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+
     return InvoiceModel(
       id:              doc.id,
       vendorId:        d['vendorId'] ?? '',
@@ -117,9 +136,7 @@ class InvoiceModel {
       month:           d['month'] ?? 1,
       year:            d['year'] ?? DateTime.now().year,
       statusStr:       d['status'] ?? 'draft',
-      lineItems:       (d['lineItems'] as List<dynamic>? ?? [])
-          .map((e) => InvoiceLineItem.fromMap(Map<String, dynamic>.from(e)))
-          .toList(),
+      rawLineItems:    rawItems,
       subtotal:        (d['subtotal'] ?? 0).toDouble(),
       totalDiscount:   (d['totalDiscount'] ?? 0).toDouble(),
       extraCharges:    (d['extraCharges'] ?? 0).toDouble(),
@@ -131,6 +148,7 @@ class InvoiceModel {
       paidAt:          (d['paidAt'] as Timestamp?)?.toDate(),
       paymentMethod:   d['paymentMethod'],
       notes:           d['notes'],
+      deliveryIds:     List<String>.from(d['deliveryIds'] ?? []),
     );
   }
 
@@ -143,17 +161,51 @@ class InvoiceModel {
     'month':           month,
     'year':            year,
     'status':          statusStr,
-    'lineItems':       lineItems.map((e) => e.toMap()).toList(),
+    'lineItems':       rawLineItems,
     'subtotal':        subtotal,
     'totalDiscount':   totalDiscount,
     'extraCharges':    extraCharges,
     'totalAmount':     totalAmount,
     'paidAmount':      paidAmount,
     'pendingAmount':   pendingAmount,
-    'generatedAt':     FieldValue.serverTimestamp(),
+    'generatedAt':     Timestamp.fromDate(generatedAt),
     'dueDate':         Timestamp.fromDate(dueDate),
     'paidAt':          paidAt != null ? Timestamp.fromDate(paidAt!) : null,
     'paymentMethod':   paymentMethod,
     'notes':           notes,
+    'deliveryIds':     deliveryIds,
+    'updatedAt':       FieldValue.serverTimestamp(),
   };
+
+  InvoiceModel copyWith({
+    String? statusStr,
+    double? paidAmount,
+    double? pendingAmount,
+    DateTime? paidAt,
+    String? paymentMethod,
+    String? notes,
+  }) => InvoiceModel(
+    id:              id,
+    vendorId:        vendorId,
+    customerId:      customerId,
+    customerName:    customerName,
+    customerPhone:   customerPhone,
+    customerAddress: customerAddress,
+    month:           month,
+    year:            year,
+    statusStr:       statusStr ?? this.statusStr,
+    rawLineItems:    rawLineItems,
+    subtotal:        subtotal,
+    totalDiscount:   totalDiscount,
+    extraCharges:    extraCharges,
+    totalAmount:     totalAmount,
+    paidAmount:      paidAmount ?? this.paidAmount,
+    pendingAmount:   pendingAmount ?? this.pendingAmount,
+    generatedAt:     generatedAt,
+    dueDate:         dueDate,
+    paidAt:          paidAt ?? this.paidAt,
+    paymentMethod:   paymentMethod ?? this.paymentMethod,
+    notes:           notes ?? this.notes,
+    deliveryIds:     deliveryIds,
+  );
 }

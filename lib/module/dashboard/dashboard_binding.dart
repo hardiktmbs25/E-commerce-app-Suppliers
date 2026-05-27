@@ -1,9 +1,19 @@
 // lib/module/dashboard/dashboard_binding.dart
+//
+// FIX: Removed the duplicate `Get.put<DeliverySchedulerService>()` call.
+//
+// PROBLEM: DeliverySchedulerService was registered here AND now also in
+// InitialBinding (permanent). Calling Get.put() on an already-registered
+// permanent service would silently replace it, resetting the midnight timer
+// and any in-progress scheduling state — causing missed daily generation.
+//
+// SOLUTION: Trust InitialBinding to have already registered the service
+// before this binding runs. DashboardBinding should only set up the
+// dashboard-scoped repositories and controllers.
+
 import 'package:get/get.dart';
-import '../../data/repositories/billing_repository.dart';
 import '../../data/repositories/customer_repository.dart';
 import '../../data/repositories/delivery_repository.dart';
-import '../../services/delivery_scheduler_service.dart';
 import '../billing/billing_controller.dart';
 import '../customers/customers_controller.dart';
 import '../deliveries/deliveries_controller.dart';
@@ -13,29 +23,13 @@ import 'dashboard_controller.dart';
 class DashboardBinding extends Bindings {
   @override
   void dependencies() {
-    // AuthService, ConnectivityService, NotificationService, VendorRepository
-    // are registered permanently in main.dart
 
-    // ── DeliverySchedulerService ─────────────────────────────────────────
-    // Must be registered BEFORE DeliveriesController because the controller
-    // calls Get.find<DeliverySchedulerService>() at construction time.
-    // DashboardScreen uses IndexedStack so all tab controllers are built at once.
-    Get.put<DeliverySchedulerService>(
-      DeliverySchedulerService(),
-      permanent: true,
-    );
-
-    // ── Repositories ─────────────────────────────────────────────────────
+    // ── Repositories ──────────────────────────────────────────────────────
     Get.lazyPut<CustomerRepository>(() => CustomerRepository(), fenix: true);
     Get.lazyPut<DeliveryRepository>(() => DeliveryRepository(), fenix: true);
-    Get.lazyPut<BillingRepository>(() => BillingRepository(), fenix: true);
 
-    // ── Controllers ───────────────────────────────────────────────────────
+    // ── Controllers ────────────────────────────────────────────────────────
     Get.lazyPut<DashboardController>(() => DashboardController());
-
-    // Tab controllers — registered here because DashboardScreen uses IndexedStack,
-    // meaning all tab screens are built at once and their controllers must exist
-    // before the widgets call Get.find<>().
     Get.lazyPut<CustomersController>(() => CustomersController(), fenix: true);
     Get.lazyPut<DeliveriesController>(() => DeliveriesController(), fenix: true);
     Get.lazyPut<BillingController>(() => BillingController(), fenix: true);

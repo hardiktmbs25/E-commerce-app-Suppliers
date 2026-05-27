@@ -325,7 +325,7 @@ class _QtyUnitRow extends StatelessWidget {
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
           ),
-          items: ['litre', 'kg', 'piece', 'packet', 'unit', 'copy', 'box']
+          items: ['litre', 'kg', 'piece', 'packet', 'unit', 'copy', 'can', 'box']
               .map((u) => DropdownMenuItem(value: u,
               child: Text(u, style: const TextStyle(
                   fontFamily: 'Poppins', fontSize: 13))))
@@ -548,7 +548,7 @@ class _SubscriptionForm extends StatelessWidget {
                 Icon(Icons.arrow_upward_rounded, size: 14,
                     color: AppColors.textHint),
                 SizedBox(width: 8),
-                Text('Select a customer first to see their subscriptions.',
+                Text('Select a customer first to see their subscriptions',
                     style: TextStyle(fontSize: 12, color: AppColors.textHint,
                         fontFamily: 'Poppins')),
               ]),

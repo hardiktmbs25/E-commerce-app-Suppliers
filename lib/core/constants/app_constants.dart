@@ -1,6 +1,6 @@
 // lib/core/constants/app_constants.dart
 abstract class AppConstants {
-  // ── Collections ───────────────────────────────────────────────────────
+  // ── Firestore collections ─────────────────────────────────────────────
   static const colVendors       = 'vendors';
   static const colCustomers     = 'customers';
   static const colSubscriptions = 'subscriptions';
@@ -12,7 +12,10 @@ abstract class AppConstants {
   static const colPlans         = 'plans';
   static const colAreas         = 'areas';
   static const colTimeSlots     = 'timeSlots';
-  static const colBillEntries     = 'billEntries';
+  static const colBillEntries   = 'billEntries';
+  // NEW ↓
+  static const colBills         = 'bills';
+  static const colLedger        = 'ledger';
 
   // ── Hive boxes ────────────────────────────────────────────────────────
   static const boxSettings      = 'settings';
@@ -21,6 +24,10 @@ abstract class AppConstants {
   static const boxDeliveries    = 'deliveries_cache';
   static const boxSyncQueue     = 'sync_queue';
   static const boxSubscriptions = 'subscriptions_cache';
+  // NEW ↓
+  static const boxBills         = 'bills_cache';
+  static const boxPayments      = 'payments_cache';
+  static const boxLedger        = 'ledger_cache';
 
   // ── Hive type IDs ─────────────────────────────────────────────────────
   static const tidVendorModel       = 0;
@@ -28,6 +35,10 @@ abstract class AppConstants {
   static const tidSubscriptionModel = 2;
   static const tidDeliveryModel     = 3;
   static const tidSyncAction        = 4;
+  // NEW ↓ (do not reuse 0-4)
+  static const tidBillingModel      = 5;
+  static const tidPaymentModel      = 6;
+  static const tidLedgerEntryModel  = 7;
 
   // ── Dimensions ────────────────────────────────────────────────────────
   static const paddingXS   = 4.0;
@@ -59,5 +70,7 @@ abstract class AppConstants {
 
   // ── Business ──────────────────────────────────────────────────────────
   static const maxRouteCustomers = 100;
-  static const billDueDays       = 5; // days after month end
+  static const billDueDays       = 5;   // days after month end
+  // NEW ↓
+  static const overdueDays       = 7;   // days after due date → overdue status
 }

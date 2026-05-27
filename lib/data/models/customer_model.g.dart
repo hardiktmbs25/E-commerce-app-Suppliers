@@ -37,13 +37,16 @@ class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
       deliveryOrder: fields[17] as int,
       profileImageUrl: fields[18] as String?,
       metadata: (fields[19] as Map).cast<String, dynamic>(),
+      activeSubscriptionIds: (fields[20] as List).cast<String>(),
+      billingType: fields[21] as String,
+      walletBalance: fields[22] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, CustomerModel obj) {
     writer
-      ..writeByte(20)
+      ..writeByte(23)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -83,7 +86,13 @@ class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
       ..writeByte(18)
       ..write(obj.profileImageUrl)
       ..writeByte(19)
-      ..write(obj.metadata);
+      ..write(obj.metadata)
+      ..writeByte(20)
+      ..write(obj.activeSubscriptionIds)
+      ..writeByte(21)
+      ..write(obj.billingType)
+      ..writeByte(22)
+      ..write(obj.walletBalance);
   }
 
   @override

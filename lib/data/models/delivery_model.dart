@@ -29,8 +29,10 @@ class DeliveryModel extends HiveObject {
   @HiveField(19) final int routeOrder;
   @HiveField(20) final String deliverySlot;
   @HiveField(21) final bool isExtraOrder;
+  @HiveField(22) final bool billGenerated;
+  @HiveField(23) final String? invoiceId;
 
-   DeliveryModel({
+  DeliveryModel({
     required this.id,
     required this.vendorId,
     required this.customerId,
@@ -53,6 +55,8 @@ class DeliveryModel extends HiveObject {
     this.routeOrder = 0,
     this.deliverySlot = '07:00 AM',
     this.isExtraOrder = false,
+    this.billGenerated = false,
+    this.invoiceId,
   });
 
   DeliveryStatus get status => DeliveryStatus.values.firstWhere(
@@ -103,6 +107,8 @@ class DeliveryModel extends HiveObject {
       routeOrder:      d['routeOrder'] ?? 0,
       deliverySlot:    d['deliverySlot'] ?? '07:00 AM',
       isExtraOrder:    d['isExtraOrder'] ?? false,
+      billGenerated:   d['billGenerated'] ?? false,
+      invoiceId:       d['invoiceId'],
     );
   }
 
@@ -127,6 +133,8 @@ class DeliveryModel extends HiveObject {
     'routeOrder':      routeOrder,
     'deliverySlot':    deliverySlot,
     'isExtraOrder':    isExtraOrder,
+    'billGenerated':   billGenerated,
+    'invoiceId':       invoiceId,
   };
 
   DeliveryModel copyWith({
@@ -135,6 +143,8 @@ class DeliveryModel extends HiveObject {
     String? notes,
     bool? isPaid,
     bool? isSynced,
+    bool? billGenerated,
+    String? invoiceId,
   }) => DeliveryModel(
     id: id, vendorId: vendorId, customerId: customerId,
     customerName: customerName, customerAddress: customerAddress,
@@ -149,5 +159,7 @@ class DeliveryModel extends HiveObject {
     createdAt: createdAt, updatedAt: DateTime.now(),
     routeId: routeId, routeOrder: routeOrder,
     deliverySlot: deliverySlot, isExtraOrder: isExtraOrder,
+    billGenerated: billGenerated ?? this.billGenerated,
+    invoiceId:     invoiceId ?? this.invoiceId,
   );
 }

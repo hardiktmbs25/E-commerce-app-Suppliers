@@ -19,6 +19,14 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    plugins.withType<com.android.build.gradle.api.AndroidBasePlugin> {
+        extensions.configure<com.android.build.gradle.BaseExtension> {
+            testOptions.unitTests.isIncludeAndroidResources = false
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

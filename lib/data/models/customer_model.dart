@@ -29,8 +29,11 @@ class CustomerModel extends HiveObject {
   @HiveField(17) final int deliveryOrder;  // sequence in route
   @HiveField(18) final String? profileImageUrl;
   @HiveField(19) final Map<String, dynamic> metadata;
+  @HiveField(20) final List<String> activeSubscriptionIds;
+  @HiveField(21) final String billingType; // 'daily', 'weekly', 'monthly'
+  @HiveField(22) final double walletBalance;
 
-   CustomerModel({
+  CustomerModel({
     required this.id,
     required this.vendorId,
     required this.name,
@@ -51,6 +54,9 @@ class CustomerModel extends HiveObject {
     this.deliveryOrder = 0,
     this.profileImageUrl,
     this.metadata = const {},
+    this.activeSubscriptionIds = const [],
+    this.billingType = 'monthly',
+    this.walletBalance = 0,
   });
 
   CustomerStatus get status => CustomerStatus.values.firstWhere(
@@ -85,29 +91,35 @@ class CustomerModel extends HiveObject {
       deliveryOrder:    d['deliveryOrder'] ?? 0,
       profileImageUrl:  d['profileImageUrl'],
       metadata:         Map<String, dynamic>.from(d['metadata'] ?? {}),
+      activeSubscriptionIds: List<String>.from(d['activeSubscriptionIds'] ?? []),
+      billingType:           d['billingType'] ?? 'monthly',
+      walletBalance:         (d['walletBalance'] ?? 0.0).toDouble(),
     );
   }
 
   Map<String, dynamic> toFirestore() => {
-    'vendorId':        vendorId,
-    'name':            name,
-    'phone':           phone,
-    'alternatePhone':  alternatePhone,
-    'address':         address,
-    'landmark':        landmark,
-    'routeId':         routeId,
-    'routeName':       routeName,
-    'serviceType':     serviceTypeStr,
-    'status':          statusStr,
-    'paymentStatus':   paymentStatusStr,
-    'pendingAmount':   pendingAmount,
-    'totalPaid':       totalPaid,
-    'notes':           notes,
-    'createdAt':       Timestamp.fromDate(createdAt),
-    'updatedAt':       FieldValue.serverTimestamp(),
-    'deliveryOrder':   deliveryOrder,
-    'profileImageUrl': profileImageUrl,
-    'metadata':        metadata,
+    'vendorId':              vendorId,
+    'name':                  name,
+    'phone':                 phone,
+    'alternatePhone':        alternatePhone,
+    'address':               address,
+    'landmark':              landmark,
+    'routeId':               routeId,
+    'routeName':             routeName,
+    'serviceType':           serviceTypeStr,
+    'status':                statusStr,
+    'paymentStatus':         paymentStatusStr,
+    'pendingAmount':         pendingAmount,
+    'totalPaid':             totalPaid,
+    'notes':                 notes,
+    'createdAt':             Timestamp.fromDate(createdAt),
+    'updatedAt':             FieldValue.serverTimestamp(),
+    'deliveryOrder':         deliveryOrder,
+    'profileImageUrl':       profileImageUrl,
+    'metadata':              metadata,
+    'activeSubscriptionIds': activeSubscriptionIds,
+    'billingType':           billingType,
+    'walletBalance':         walletBalance,
   };
 
   CustomerModel copyWith({
@@ -126,26 +138,32 @@ class CustomerModel extends HiveObject {
     int? deliveryOrder,
     String? profileImageUrl,
     Map<String, dynamic>? metadata,
+    List<String>? activeSubscriptionIds,
+    String? billingType,
+    double? walletBalance,
   }) => CustomerModel(
-    id:               id,
-    vendorId:         vendorId,
-    name:             name ?? this.name,
-    phone:            phone ?? this.phone,
-    alternatePhone:   alternatePhone ?? this.alternatePhone,
-    address:          address ?? this.address,
-    landmark:         landmark ?? this.landmark,
-    routeId:          routeId ?? this.routeId,
-    routeName:        routeName ?? this.routeName,
-    serviceTypeStr:   serviceTypeStr,
-    statusStr:        statusStr ?? this.statusStr,
-    paymentStatusStr: paymentStatusStr ?? this.paymentStatusStr,
-    pendingAmount:    pendingAmount ?? this.pendingAmount,
-    totalPaid:        totalPaid ?? this.totalPaid,
-    notes:            notes ?? this.notes,
-    createdAt:        createdAt,
-    updatedAt:        DateTime.now(),
-    deliveryOrder:    deliveryOrder ?? this.deliveryOrder,
-    profileImageUrl:  profileImageUrl ?? this.profileImageUrl,
-    metadata:         metadata ?? this.metadata,
+    id:                    id,
+    vendorId:              vendorId,
+    name:                  name ?? this.name,
+    phone:                 phone ?? this.phone,
+    alternatePhone:        alternatePhone ?? this.alternatePhone,
+    address:               address ?? this.address,
+    landmark:              landmark ?? this.landmark,
+    routeId:               routeId ?? this.routeId,
+    routeName:             routeName ?? this.routeName,
+    serviceTypeStr:        serviceTypeStr,
+    statusStr:             statusStr ?? this.statusStr,
+    paymentStatusStr:      paymentStatusStr ?? this.paymentStatusStr,
+    pendingAmount:         pendingAmount ?? this.pendingAmount,
+    totalPaid:             totalPaid ?? this.totalPaid,
+    notes:                 notes ?? this.notes,
+    createdAt:             createdAt,
+    updatedAt:             DateTime.now(),
+    deliveryOrder:         deliveryOrder ?? this.deliveryOrder,
+    profileImageUrl:       profileImageUrl ?? this.profileImageUrl,
+    metadata:              metadata ?? this.metadata,
+    activeSubscriptionIds: activeSubscriptionIds ?? this.activeSubscriptionIds,
+    billingType:           billingType ?? this.billingType,
+    walletBalance:         walletBalance ?? this.walletBalance,
   );
 }

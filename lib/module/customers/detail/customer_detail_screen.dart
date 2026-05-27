@@ -99,13 +99,13 @@ class CustomerDetailScreen extends GetView<CustomerDetailController> {
                     const SizedBox(height: 20),
 
                     // Generate bill button
-                    Obx(() => PrimaryButton(
+                    PrimaryButton(
                       label: 'Generate Monthly Bill',
                       onTap: controller.generateBill,
                       isLoading: controller.isGeneratingBill.value,
                       icon: Icons.receipt_long_rounded,
                       color: AppColors.success,
-                    )),
+                    ),
                     const SizedBox(height: 10),
                     PrimaryButton(
                       label: 'Add Delivery',
@@ -134,27 +134,25 @@ class CustomerDetailScreen extends GetView<CustomerDetailController> {
               ),
             ),
 
-            Obx(() {
-              if (controller.isLoading.value) {
-                return const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: ShimmerList(count: 3, itemHeight: 80),
-                  ),
-                );
-              }
-              if (controller.invoices.isEmpty) {
-                return const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text('No invoices yet.',
-                        style: TextStyle(fontSize: 13,
-                            color: AppColors.textSecondary,
-                            fontFamily: 'Poppins')),
-                  ),
-                );
-              }
-              return SliverPadding(
+            if (controller.isLoading.value)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: ShimmerList(count: 3, itemHeight: 80),
+                ),
+              )
+            else if (controller.invoices.isEmpty)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('No invoices yet.',
+                      style: TextStyle(fontSize: 13,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Poppins')),
+                ),
+              )
+            else
+              SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
@@ -214,8 +212,7 @@ class CustomerDetailScreen extends GetView<CustomerDetailController> {
                     childCount: controller.invoices.length,
                   ),
                 ),
-              );
-            }),
+              ),
           ],
         );
       }),

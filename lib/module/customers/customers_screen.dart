@@ -35,7 +35,7 @@ class CustomersScreen extends StatelessWidget {
             decoration: InputDecoration(
               hintText: 'Search by name, phone, address...',
               prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.textHint),
-              suffixIcon: Obx(() => ctrl.searchQuery.isNotEmpty
+              suffixIcon: Obx(() => ctrl.searchQuery.value.isNotEmpty
                   ? IconButton(
                 icon: const Icon(Icons.clear_rounded, size: 18),
                 onPressed: () { ctrl.setSearch(''); },
@@ -82,14 +82,19 @@ class CustomersScreen extends StatelessWidget {
           child: Obx(() {
             if (ctrl.isLoading.value) return const ShimmerList();
             if (ctrl.filteredCustomers.isEmpty) {
-              return EmptyState(
-                title: 'No Customers Found',
-                subtitle: ctrl.searchQuery.isNotEmpty
-                    ? 'Try a different search term.'
-                    : 'Add your first customer to get started.',
-                icon: Icons.people_outline_rounded,
-                actionLabel: 'Add Customer',
-                onAction: () => Get.toNamed(Routes.addCustomer),
+              return Center(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: EmptyState(
+                    title: 'No Customers Found',
+                    subtitle: ctrl.searchQuery.value.isNotEmpty
+                        ? 'Try a different search term.'
+                        : 'Add your first customer to get started.',
+                    icon: Icons.people_outline_rounded,
+                    actionLabel: 'Add Customer',
+                    onAction: () => Get.toNamed(Routes.addCustomer),
+                  ),
+                ),
               );
             }
             return ListView.separated(

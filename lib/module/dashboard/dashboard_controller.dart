@@ -131,6 +131,7 @@ class DashboardController extends GetxController {
 
   void changeTab(int index) => currentTabIndex.value = index;
 
+  @override
   Future<void> refresh() async {
     _cancelStreams();
     _initStreams();

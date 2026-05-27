@@ -5,27 +5,27 @@ abstract class Failure {
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure([String message = 'No internet connection.']) : super(message);
+  const NetworkFailure([super.message = 'No internet connection.']);
 }
 
 class AuthFailure extends Failure {
-  const AuthFailure(String message) : super(message);
+  const AuthFailure(super.message);
 }
 
 class FirestoreFailure extends Failure {
-  const FirestoreFailure(String message) : super(message);
+  const FirestoreFailure(super.message);
 }
 
 class ValidationFailure extends Failure {
-  const ValidationFailure(String message) : super(message);
+  const ValidationFailure(super.message);
 }
 
 class CacheFailure extends Failure {
-  const CacheFailure([String message = 'Local cache error.']) : super(message);
+  const CacheFailure([super.message = 'Local cache error.']);
 }
 
 class UnknownFailure extends Failure {
-  const UnknownFailure([String message = 'Something went wrong.']) : super(message);
+  const UnknownFailure([super.message = 'Something went wrong.']);
 }
 
 // ── Result type ──────────────────────────────────────────────────────────────

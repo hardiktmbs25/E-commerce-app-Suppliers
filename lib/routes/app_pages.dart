@@ -2,6 +2,7 @@
 import 'package:e_commerce_suppliers/module/deliveries/add/add_delivery_binding.dart';
 import 'package:e_commerce_suppliers/module/deliveries/add/add_delivery_screen.dart';
 import 'package:get/get.dart';
+import '../data/repositories/billing_repository.dart';
 import '../module/analytics/analytics_binding.dart';
 import '../module/analytics/analytics_screen.dart';
 import '../module/auth/forgot_password/forgot_password_binding.dart';
@@ -16,6 +17,8 @@ import '../module/auth/splash/splash_binding.dart';
 import '../module/auth/splash/splash_screen.dart';
 import '../module/billing/billing_binding.dart';
 import '../module/billing/billing_screen.dart';
+import '../module/billing/customer_ledger_screen.dart';
+import '../module/billing/payment_history_screen.dart';
 import '../module/customers/add/add_customer_binding.dart';
 import '../module/customers/add/add_customer_screen.dart';
 import '../module/customers/customers_binding.dart';
@@ -50,6 +53,26 @@ import 'app_routes.dart';
 
 abstract class AppPages {
   static final routes = <GetPage>[
+    GetPage(
+      name: Routes.customerLedger,
+      page: () => const CustomerLedgerScreen(),
+      binding: BindingsBuilder(() {
+        if (!Get.isRegistered<BillingRepository>()) {
+          Get.lazyPut<BillingRepository>(() => BillingRepository(), fenix: true);
+        }
+      }),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.paymentHistory,
+      page: () => const PaymentHistoryScreen(),
+      binding: BindingsBuilder(() {
+        if (!Get.isRegistered<BillingRepository>()) {
+          Get.lazyPut<BillingRepository>(() => BillingRepository(), fenix: true);
+        }
+      }),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: Routes.splash,
       page: () => const SplashScreen(),

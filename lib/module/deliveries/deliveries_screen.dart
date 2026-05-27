@@ -224,24 +224,26 @@ class DeliveriesScreen extends StatelessWidget {
                 return RefreshIndicator(
                   onRefresh: ctrl.refresh,
                   color: AppColors.primary,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: EmptyState(
-                      title: ctrl.searchQuery.value.isNotEmpty
-                          ? 'No Results Found'
-                          : ctrl.statusFilter.value == 'all'
-                          ? 'No Deliveries Today'
-                          : 'No ${GetStringUtils(ctrl.statusFilter.value).capitalize} Deliveries',
-                      subtitle: ctrl.searchQuery.value.isNotEmpty
-                          ? 'Try a different search term.'
-                          : 'Deliveries are auto-generated from active subscriptions.',
-                      icon: Icons.local_shipping_outlined,
-                      actionLabel: ctrl.searchQuery.value.isNotEmpty
-                          ? 'Clear Search'
-                          : null,
-                      onAction: ctrl.searchQuery.value.isNotEmpty
-                          ? ctrl.clearSearch
-                          : null,
+                  child: Center(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: EmptyState(
+                        title: ctrl.searchQuery.value.isNotEmpty
+                            ? 'No Results Found'
+                            : ctrl.statusFilter.value == 'all'
+                            ? 'No Deliveries Today'
+                            : 'No ${GetStringUtils(ctrl.statusFilter.value).capitalize} Deliveries',
+                        subtitle: ctrl.searchQuery.value.isNotEmpty
+                            ? 'Try a different search term.'
+                            : 'Deliveries are auto-generated from active subscriptions.',
+                        icon: Icons.local_shipping_outlined,
+                        actionLabel: ctrl.searchQuery.value.isNotEmpty
+                            ? 'Clear Search'
+                            : null,
+                        onAction: ctrl.searchQuery.value.isNotEmpty
+                            ? ctrl.clearSearch
+                            : null,
+                      ),
                     ),
                   ),
                 );
