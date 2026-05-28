@@ -11,10 +11,13 @@ import '../core/utils/logger.dart';
 /// token refresh, and user stream observation. Makes controllers testable
 /// by allowing this services to be mocked.
 class AuthService extends GetxService {
+  static AuthService get to => Get.find();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   User? get currentUser => _auth.currentUser;
   String? get uid => _auth.currentUser?.uid;
+  String get vendorId => uid ?? '';
+  bool get isLoggedIn => currentUser != null;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   // ── Register ──────────────────────────────────────────────────────────

@@ -31,23 +31,26 @@ class DeliveryModelAdapter extends TypeAdapter<DeliveryModel> {
       scheduledDate: fields[11] as DateTime,
       deliveredAt: fields[12] as DateTime?,
       notes: fields[13] as String?,
-      isPaid: fields[14] as bool,
-      isSynced: fields[15] as bool,
+      isPaid: fields[14] == null ? false : fields[14] as bool,
+      isSynced: fields[15] == null ? true : fields[15] as bool,
       createdAt: fields[16] as DateTime,
       updatedAt: fields[17] as DateTime,
       routeId: fields[18] as String?,
-      routeOrder: fields[19] as int,
-      deliverySlot: fields[20] as String,
-      isExtraOrder: fields[21] as bool,
-      billGenerated: fields[22] as bool,
+      routeOrder: fields[19] == null ? 0 : fields[19] as int,
+      deliverySlot: fields[20] == null ? '07:00 AM' : fields[20] as String,
+      isExtraOrder: fields[21] == null ? false : fields[21] as bool,
+      billGenerated: fields[22] == null ? false : fields[22] as bool,
       invoiceId: fields[23] as String?,
+      proofImageUrl: fields[24] as String?,
+      signatureUrl: fields[25] as String?,
+      deliveryOtp: fields[26] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, DeliveryModel obj) {
     writer
-      ..writeByte(24)
+      ..writeByte(27)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -95,7 +98,13 @@ class DeliveryModelAdapter extends TypeAdapter<DeliveryModel> {
       ..writeByte(22)
       ..write(obj.billGenerated)
       ..writeByte(23)
-      ..write(obj.invoiceId);
+      ..write(obj.invoiceId)
+      ..writeByte(24)
+      ..write(obj.proofImageUrl)
+      ..writeByte(25)
+      ..write(obj.signatureUrl)
+      ..writeByte(26)
+      ..write(obj.deliveryOtp);
   }
 
   @override

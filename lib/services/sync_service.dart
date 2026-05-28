@@ -76,6 +76,9 @@ class SyncService extends GetxService {
       case SyncActionType.createBill:
       case SyncActionType.recordBillPayment:
       case SyncActionType.createLedgerEntry:
+      case SyncActionType.recordExpense:
+      case SyncActionType.createRoute:
+      case SyncActionType.addStaff:
         await ref.set(action.payload);
         break;
 
@@ -84,6 +87,8 @@ class SyncService extends GetxService {
       case SyncActionType.recordPayment:
       case SyncActionType.updateSubscription:
       case SyncActionType.updateBill:
+      case SyncActionType.updateStock:
+      case SyncActionType.updateWallet:
         final payload = Map<String, dynamic>.from(action.payload);
         payload['updatedAt'] = FieldValue.serverTimestamp();
         await ref.update(payload);

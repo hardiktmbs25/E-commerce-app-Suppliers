@@ -136,4 +136,15 @@ class VendorRepository {
       AppLogger.e('updateFcmToken error', e);
     }
   }
+
+  // ── Check if email exists ──────────────────────────────────────────────
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      final snapshot = await _col.where('email', isEqualTo: email.trim()).get();
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      AppLogger.e('checkEmailExists error', e);
+      return false;
+    }
+  }
 }

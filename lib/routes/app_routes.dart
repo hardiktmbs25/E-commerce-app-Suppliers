@@ -29,4 +29,8 @@ abstract class Routes {
   static const globalPlans      = '/global-plans';
   static const customerLedger   = '/customer-ledger';
   static const paymentHistory   = '/payment-history';
+  static const routeList        = '/routes';
+  static const staffList        = '/staff';
+  static const inventory        = '/inventory';
+  static const expenses         = '/expenses';
 }

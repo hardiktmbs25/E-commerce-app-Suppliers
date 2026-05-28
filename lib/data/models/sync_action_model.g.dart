@@ -21,10 +21,11 @@ class SyncActionModelAdapter extends TypeAdapter<SyncActionModel> {
       actionTypeStr: fields[1] as String,
       collection: fields[2] as String,
       documentId: fields[3] as String?,
-      payload: (fields[4] as Map).cast<String, dynamic>(),
+      payload:
+          fields[4] == null ? {} : (fields[4] as Map).cast<String, dynamic>(),
       createdAt: fields[5] as DateTime,
-      retryCount: fields[6] as int,
-      isFailed: fields[7] as bool,
+      retryCount: fields[6] == null ? 0 : fields[6] as int,
+      isFailed: fields[7] == null ? false : fields[7] as bool,
       localId: fields[8] as String?,
     );
   }

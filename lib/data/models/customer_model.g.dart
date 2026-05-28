@@ -29,24 +29,30 @@ class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
       serviceTypeStr: fields[9] as String,
       statusStr: fields[10] as String,
       paymentStatusStr: fields[11] as String,
-      pendingAmount: fields[12] as double,
-      totalPaid: fields[13] as double,
+      pendingAmount: fields[12] == null ? 0.0 : fields[12] as double,
+      totalPaid: fields[13] == null ? 0.0 : fields[13] as double,
       notes: fields[14] as String?,
       createdAt: fields[15] as DateTime,
       updatedAt: fields[16] as DateTime,
-      deliveryOrder: fields[17] as int,
+      deliveryOrder: fields[17] == null ? 0 : fields[17] as int,
       profileImageUrl: fields[18] as String?,
-      metadata: (fields[19] as Map).cast<String, dynamic>(),
-      activeSubscriptionIds: (fields[20] as List).cast<String>(),
-      billingType: fields[21] as String,
-      walletBalance: fields[22] as double,
+      metadata:
+          fields[19] == null ? {} : (fields[19] as Map).cast<String, dynamic>(),
+      activeSubscriptionIds:
+          fields[20] == null ? [] : (fields[20] as List).cast<String>(),
+      billingType: fields[21] == null ? 'monthly' : fields[21] as String,
+      walletBalance: fields[22] == null ? 0.0 : fields[22] as double,
+      pauseStartDate: fields[23] as DateTime?,
+      pauseEndDate: fields[24] as DateTime?,
+      creditLimit: fields[25] == null ? 0.0 : fields[25] as double,
+      lastResumeDate: fields[26] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CustomerModel obj) {
     writer
-      ..writeByte(23)
+      ..writeByte(27)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -92,7 +98,15 @@ class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
       ..writeByte(21)
       ..write(obj.billingType)
       ..writeByte(22)
-      ..write(obj.walletBalance);
+      ..write(obj.walletBalance)
+      ..writeByte(23)
+      ..write(obj.pauseStartDate)
+      ..writeByte(24)
+      ..write(obj.pauseEndDate)
+      ..writeByte(25)
+      ..write(obj.creditLimit)
+      ..writeByte(26)
+      ..write(obj.lastResumeDate);
   }
 
   @override

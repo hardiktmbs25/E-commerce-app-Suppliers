@@ -15,11 +15,11 @@ class PaymentModel extends HiveObject {
   @HiveField(2)  final String customerId;
   @HiveField(3)  final String customerName;
   @HiveField(4)  final String? billId;        // null for ad-hoc daily payments
-  @HiveField(5)  final double amount;
-  @HiveField(6)  final String paymentMethodStr; // PaymentMethod.name
+  @HiveField(5, defaultValue: 0.0)  final double amount;
+  @HiveField(6, defaultValue: 'cash')  final String paymentMethodStr; // PaymentMethod.name
   @HiveField(7)  final DateTime paidAt;
   @HiveField(8)  final String? note;
-  @HiveField(9)  final bool isSynced;
+  @HiveField(9, defaultValue: true)  final bool isSynced;
   @HiveField(10) final DateTime createdAt;
 
   PaymentModel({

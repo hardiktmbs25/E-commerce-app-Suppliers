@@ -88,18 +88,21 @@ class DeliverySchedulerService extends GetxService {
 
         AppLogger.i('Scheduler: Running 15-minute slot checks...');
 
-        // 1. Every 15 minutes: Auto-missed rule transition
+        // 1. Check for starting time slots and generate deliveries
+        await _checkAndGenerateStartingSlots(vendorId);
+
+        // 2. Auto-missed rule transition
         await _markExpiredPendingAsMissed(vendorId);
 
         _tickCount++;
 
-        // 2. Every 30 minutes (2 ticks): Sync offline queue
+        // 3. Every 30 minutes (2 ticks): Sync offline queue
         if (_tickCount % 2 == 0) {
           AppLogger.i('Scheduler: Running 30-minute offline sync queue...');
           await Get.find<SyncService>().syncPendingActions();
         }
 
-        // 3. Every 60 minutes (4 ticks): Check overdue invoices
+        // 4. Every 60 minutes (4 ticks): Check overdue invoices
         if (_tickCount % 4 == 0) {
           AppLogger.i('Scheduler: Checking overdue invoices...');
           try {
@@ -111,6 +114,26 @@ class DeliverySchedulerService extends GetxService {
       },
     );
   }
+
+  Future<void> _checkAndGenerateStartingSlots(String vendorId) async {
+    final vendor = LocalStorageService.getVendor();
+    if (vendor == null) return;
+
+    final now = DateTime.now();
+    for (final slot in vendor.timeSlots) {
+      final slotTime = _slotToDateTime(slot);
+      
+      // If now is within 15 minutes AFTER the slot time, ensure deliveries are generated
+      final diff = now.difference(slotTime).inMinutes;
+      if (diff >= 0 && diff < 16) {
+        AppLogger.i('Scheduler: Slot $slot just started. Generating deliveries for this slot.');
+        await Get.find<DeliveryGenerationService>().generateForDateAndSlot(vendorId, now, slot);
+      }
+    }
+  }
+
+  // ... (existing code)
+
 
   // ─────────────────────────────────────────────────────────────
   // PUBLIC API

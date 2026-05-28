@@ -78,6 +78,11 @@ dependencies:
   equatable:
   dartz:
   rxdart:
+  speech_to_text:
+  google_maps_flutter:
+  location:
+  excel:
+  signature:
 
 dev_dependencies:
   flutter_test:

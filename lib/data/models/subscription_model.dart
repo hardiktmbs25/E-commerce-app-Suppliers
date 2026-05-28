@@ -45,14 +45,16 @@ class SubscriptionModel extends HiveObject {
   @HiveField(13) final DateTime? endDate;
   @HiveField(14) final DateTime? pausedUntil;
   @HiveField(15) final DateTime? nextDeliveryDate;
-  @HiveField(16) final List<int> customDays;
-  @HiveField(17) final int completedDeliveries;
-  @HiveField(18) final int pendingDeliveries;
+  @HiveField(16, defaultValue: []) final List<int> customDays;
+  @HiveField(17, defaultValue: 0) final int completedDeliveries;
+  @HiveField(18, defaultValue: 0) final int pendingDeliveries;
   @HiveField(19) final String? notes;
   @HiveField(20) final DateTime createdAt;
   @HiveField(21) final DateTime updatedAt;
   /// NEW: ordered list of delivery time strings e.g. ['07:00 AM', '01:00 PM']
-  @HiveField(22) final List<String> deliverySlots;
+  @HiveField(22, defaultValue: []) final List<String> deliverySlots;
+  @HiveField(23, defaultValue: false) final bool vacationMode;
+  @HiveField(24, defaultValue: true) final bool autoResume;
 
   SubscriptionModel({
     required this.id,
@@ -78,6 +80,8 @@ class SubscriptionModel extends HiveObject {
     required this.createdAt,
     required this.updatedAt,
     this.deliverySlots = const [],
+    this.vacationMode = false,
+    this.autoResume = true,
   });
 
   // ── Computed ────────────────────────────────────────────────────────────
@@ -123,7 +127,7 @@ class SubscriptionModel extends HiveObject {
     }
 
     // 4. Pause date checks
-    if (status == SubscriptionStatus.paused) {
+    if (status == SubscriptionStatus.paused || vacationMode) {
       if (pausedUntil != null) {
         final resume = DateTime(pausedUntil!.year, pausedUntil!.month, pausedUntil!.day);
         if (targetDate.isBefore(resume)) {
@@ -145,6 +149,12 @@ class SubscriptionModel extends HiveObject {
         return targetDate.difference(start).inDays % 2 == 0;
       case DeliveryFrequency.weekly:
         return targetDate.weekday == start.weekday;
+      default:
+        // Handle custom days if applicable
+        if (customDays.isNotEmpty) {
+           return customDays.contains(targetDate.weekday);
+        }
+        return true;
     }
   }
 
@@ -180,6 +190,8 @@ class SubscriptionModel extends HiveObject {
       notes:                d['notes'],
       createdAt:            (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt:            (d['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      vacationMode:         d['vacationMode'] ?? false,
+      autoResume:           d['autoResume'] ?? true,
     );
   }
 
@@ -207,6 +219,8 @@ class SubscriptionModel extends HiveObject {
     'notes':               notes,
     'createdAt':           Timestamp.fromDate(createdAt),
     'updatedAt':           FieldValue.serverTimestamp(),
+    'vacationMode':        vacationMode,
+    'autoResume':          autoResume,
   };
 
   SubscriptionModel copyWith({
@@ -220,6 +234,8 @@ class SubscriptionModel extends HiveObject {
     int? pendingDeliveries,
     List<String>? deliverySlots,
     String? frequencyStr,
+    bool? vacationMode,
+    bool? autoResume,
   }) => SubscriptionModel(
     id: id, vendorId: vendorId, customerId: customerId,
     customerName: customerName, serviceTypeStr: serviceTypeStr,
@@ -238,5 +254,7 @@ class SubscriptionModel extends HiveObject {
     completedDeliveries: completedDeliveries ?? this.completedDeliveries,
     pendingDeliveries:  pendingDeliveries ?? this.pendingDeliveries,
     notes: notes, createdAt: createdAt, updatedAt: DateTime.now(),
+    vacationMode:       vacationMode ?? this.vacationMode,
+    autoResume:         autoResume ?? this.autoResume,
   );
 }

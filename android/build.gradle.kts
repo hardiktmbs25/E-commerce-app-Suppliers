@@ -12,18 +12,32 @@ val newBuildDir: Directory =
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
+    // Only redirect build directory for subprojects that are within the main project root.
+    // Plugins in the Pub cache should use their own default build directories to avoid cross-drive issues.
+    val projectDir = project.projectDir.canonicalPath
+    val rootDir = rootProject.rootDir.parentFile.canonicalPath
+    if (projectDir.startsWith(rootDir)) {
+        val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+        project.layout.buildDirectory.value(newSubprojectBuildDir)
+    }
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
 
 subprojects {
-    plugins.withType<com.android.build.gradle.api.AndroidBasePlugin> {
-        extensions.configure<com.android.build.gradle.BaseExtension> {
-            testOptions.unitTests.isIncludeAndroidResources = false
+    val configureAndroid = {
+        if (project.hasProperty("android")) {
+            project.extensions.configure<com.android.build.gradle.BaseExtension>("android") {
+                testOptions.unitTests.isIncludeAndroidResources = false
+            }
         }
+    }
+    if (project.state.executed) {
+        configureAndroid()
+    } else {
+        project.afterEvaluate { configureAndroid() }
     }
 }
 

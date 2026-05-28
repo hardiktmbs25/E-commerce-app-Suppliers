@@ -21,26 +21,29 @@ class InvoiceModelAdapter extends TypeAdapter<InvoiceModel> {
       vendorId: fields[1] as String,
       customerId: fields[2] as String,
       customerName: fields[3] as String,
-      customerPhone: fields[4] as String,
-      customerAddress: fields[5] as String,
-      month: fields[6] as int,
-      year: fields[7] as int,
-      statusStr: fields[8] as String,
-      rawLineItems: (fields[9] as List?)
-          ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
-          ?.toList(),
-      subtotal: fields[10] as double,
-      totalDiscount: fields[11] as double,
-      extraCharges: fields[12] as double,
-      totalAmount: fields[13] as double,
-      paidAmount: fields[14] as double,
-      pendingAmount: fields[15] as double,
+      customerPhone: fields[4] == null ? '' : fields[4] as String,
+      customerAddress: fields[5] == null ? '' : fields[5] as String,
+      month: fields[6] == null ? 1 : fields[6] as int,
+      year: fields[7] == null ? 2024 : fields[7] as int,
+      statusStr: fields[8] == null ? 'draft' : fields[8] as String,
+      rawLineItems: fields[9] == null
+          ? []
+          : (fields[9] as List?)
+              ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
+              ?.toList(),
+      subtotal: fields[10] == null ? 0.0 : fields[10] as double,
+      totalDiscount: fields[11] == null ? 0.0 : fields[11] as double,
+      extraCharges: fields[12] == null ? 0.0 : fields[12] as double,
+      totalAmount: fields[13] == null ? 0.0 : fields[13] as double,
+      paidAmount: fields[14] == null ? 0.0 : fields[14] as double,
+      pendingAmount: fields[15] == null ? 0.0 : fields[15] as double,
       generatedAt: fields[16] as DateTime,
       dueDate: fields[17] as DateTime,
       paidAt: fields[18] as DateTime?,
       paymentMethod: fields[19] as String?,
       notes: fields[20] as String?,
-      deliveryIds: (fields[21] as List).cast<String>(),
+      deliveryIds:
+          fields[21] == null ? [] : (fields[21] as List).cast<String>(),
     );
   }
 

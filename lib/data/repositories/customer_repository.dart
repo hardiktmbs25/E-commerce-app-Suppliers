@@ -7,14 +7,22 @@ import '../../core/errors/failures.dart';
 import '../../core/utils/logger.dart';
 import '../../services/connectivity_service.dart';
 import '../../services/local_storage_service.dart';
+import '../../services/auth_service.dart';
 import '../models/customer_model.dart';
 import '../models/sync_action_model.dart';
 
-class CustomerRepository {
+class CustomerRepository extends GetxService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final ConnectivityService _connectivity = Get.find<ConnectivityService>();
 
   String _col(String vendorId) => '${AppConstants.colVendors}/$vendorId/${AppConstants.colCustomers}';
+
+  Future<CustomerModel?> getCustomer(String id) async {
+    final vendorId = AuthService.to.vendorId;
+    final doc = await _db.collection(_col(vendorId)).doc(id).get();
+    if (doc.exists) return CustomerModel.fromFirestore(doc);
+    return null;
+  }
 
   // ── Local-first fetch ──────────────────────────────────────────────────
   List<CustomerModel> getLocalCustomers() => LocalStorageService.getCustomers();

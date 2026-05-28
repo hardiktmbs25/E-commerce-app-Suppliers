@@ -53,24 +53,24 @@ class InvoiceModel extends HiveObject {
   @HiveField(1)  final String vendorId;
   @HiveField(2)  final String customerId;
   @HiveField(3)  final String customerName;
-  @HiveField(4)  final String customerPhone;
-  @HiveField(5)  final String customerAddress;
-  @HiveField(6)  final int month;
-  @HiveField(7)  final int year;
-  @HiveField(8)  final String statusStr;
-  @HiveField(9)  final List<Map<String, dynamic>> rawLineItems;
-  @HiveField(10) final double subtotal;
-  @HiveField(11) final double totalDiscount;
-  @HiveField(12) final double extraCharges;
-  @HiveField(13) final double totalAmount;
-  @HiveField(14) final double paidAmount;
-  @HiveField(15) final double pendingAmount;
+  @HiveField(4, defaultValue: '')  final String customerPhone;
+  @HiveField(5, defaultValue: '')  final String customerAddress;
+  @HiveField(6, defaultValue: 1)   final int month;
+  @HiveField(7, defaultValue: 2024) final int year;
+  @HiveField(8, defaultValue: 'draft')  final String statusStr;
+  @HiveField(9, defaultValue: [])  final List<Map<String, dynamic>> rawLineItems;
+  @HiveField(10, defaultValue: 0.0) final double subtotal;
+  @HiveField(11, defaultValue: 0.0) final double totalDiscount;
+  @HiveField(12, defaultValue: 0.0) final double extraCharges;
+  @HiveField(13, defaultValue: 0.0) final double totalAmount;
+  @HiveField(14, defaultValue: 0.0) final double paidAmount;
+  @HiveField(15, defaultValue: 0.0) final double pendingAmount;
   @HiveField(16) final DateTime generatedAt;
   @HiveField(17) final DateTime dueDate;
   @HiveField(18) final DateTime? paidAt;
   @HiveField(19) final String? paymentMethod;
   @HiveField(20) final String? notes;
-  @HiveField(21) final List<String> deliveryIds;
+  @HiveField(21, defaultValue: []) final List<String> deliveryIds;
 
   final List<InvoiceLineItem> lineItems;
 

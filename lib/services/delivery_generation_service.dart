@@ -134,6 +134,77 @@ class DeliveryGenerationService extends GetxService {
     return count;
   }
 
+  /// Generates deliveries specifically for one slot on a specific date.
+  Future<int> generateForDateAndSlot(String vendorId, DateTime date, String targetSlot) async {
+    final subscriptions = LocalStorageService.getSubscriptions()
+        .where((s) => s.isActive)
+        .toList();
+
+    if (subscriptions.isEmpty) return 0;
+
+    final customerMap = {
+      for (final c in LocalStorageService.getCustomers())
+        c.id: c,
+    };
+
+    int count = 0;
+    final batch = _db.batch();
+    final List<DeliveryModel> localToSave = [];
+
+    // Filter subscriptions that have THIS specific slot
+    for (final sub in subscriptions) {
+      if (!sub.shouldDeliverOn(date)) continue;
+      if (!sub.effectiveSlots.contains(targetSlot)) continue;
+
+      final customer = customerMap[sub.customerId];
+      if (customer != null && customer.statusStr == 'inactive') continue;
+
+      // Duplicate protection
+      if (_checkDeliveryExistsLocally(sub.id, date, targetSlot)) continue;
+
+      final slotTime = _slotToDateTime(date, targetSlot);
+      final delivery = DeliveryModel(
+        id: const Uuid().v4(),
+        vendorId: vendorId,
+        customerId: sub.customerId,
+        customerName: sub.customerName,
+        customerAddress: customer?.address ?? '',
+        subscriptionId: sub.id,
+        serviceTypeStr: sub.serviceTypeStr,
+        quantity: sub.quantity,
+        unit: sub.unit,
+        amount: sub.pricePerDelivery,
+        scheduledDate: slotTime,
+        deliverySlot: targetSlot,
+        routeOrder: 0, // Simplified for auto-generation
+        statusStr: DeliveryStatus.pending.name,
+        isExtraOrder: false,
+        isSynced: _connectivity.isOnline.value,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        billGenerated: false,
+      );
+
+      localToSave.add(delivery);
+      if (_connectivity.isOnline.value) {
+        batch.set(_db.collection(_deliveriesCol(vendorId)).doc(delivery.id), delivery.toFirestore());
+      } else {
+        _enqueueOfflineCreate(vendorId, delivery);
+      }
+      count++;
+    }
+
+    if (_connectivity.isOnline.value && count > 0) {
+      await batch.commit();
+    }
+
+    for (final d in localToSave) {
+      await LocalStorageService.saveDelivery(d);
+    }
+
+    return count;
+  }
+
   bool _checkDeliveryExistsLocally(String subscriptionId, DateTime date, String slot) {
     final deliveries = LocalStorageService.getDeliveries();
     return deliveries.any((d) =>

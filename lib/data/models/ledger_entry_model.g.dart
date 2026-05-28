@@ -20,13 +20,13 @@ class LedgerEntryModelAdapter extends TypeAdapter<LedgerEntryModel> {
       id: fields[0] as String,
       vendorId: fields[1] as String,
       customerId: fields[2] as String,
-      typeStr: fields[3] as String,
-      amount: fields[4] as double,
-      balanceAfter: fields[5] as double,
-      description: fields[6] as String,
+      typeStr: fields[3] == null ? 'charge' : fields[3] as String,
+      amount: fields[4] == null ? 0.0 : fields[4] as double,
+      balanceAfter: fields[5] == null ? 0.0 : fields[5] as double,
+      description: fields[6] == null ? '' : fields[6] as String,
       referenceId: fields[7] as String?,
       createdAt: fields[8] as DateTime,
-      isSynced: fields[9] as bool,
+      isSynced: fields[9] == null ? true : fields[9] as bool,
     );
   }
 

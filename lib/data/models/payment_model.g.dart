@@ -22,11 +22,11 @@ class PaymentModelAdapter extends TypeAdapter<PaymentModel> {
       customerId: fields[2] as String,
       customerName: fields[3] as String,
       billId: fields[4] as String?,
-      amount: fields[5] as double,
-      paymentMethodStr: fields[6] as String,
+      amount: fields[5] == null ? 0.0 : fields[5] as double,
+      paymentMethodStr: fields[6] == null ? 'cash' : fields[6] as String,
       paidAt: fields[7] as DateTime,
       note: fields[8] as String?,
-      isSynced: fields[9] as bool,
+      isSynced: fields[9] == null ? true : fields[9] as bool,
       createdAt: fields[10] as DateTime,
     );
   }

@@ -25,15 +25,15 @@ class LedgerEntryModel extends HiveObject {
   @HiveField(0)  final String id;
   @HiveField(1)  final String vendorId;
   @HiveField(2)  final String customerId;
-  @HiveField(3)  final String typeStr;          // LedgerEntryType.name
+  @HiveField(3, defaultValue: 'charge')  final String typeStr;          // LedgerEntryType.name
   /// Positive = money owed by customer; negative = money received.
-  @HiveField(4)  final double amount;
+  @HiveField(4, defaultValue: 0.0)  final double amount;
   /// Running total after this entry. Positive = customer owes this much.
-  @HiveField(5)  final double balanceAfter;
-  @HiveField(6)  final String description;      // human-readable e.g. "Milk – 1 Litre"
+  @HiveField(5, defaultValue: 0.0)  final double balanceAfter;
+  @HiveField(6, defaultValue: '')  final String description;      // human-readable e.g. "Milk – 1 Litre"
   @HiveField(7)  final String? referenceId;     // deliveryId, paymentId, billId, etc.
   @HiveField(8)  final DateTime createdAt;
-  @HiveField(9)  final bool isSynced;
+  @HiveField(9, defaultValue: true)  final bool isSynced;
 
   LedgerEntryModel({
     required this.id,

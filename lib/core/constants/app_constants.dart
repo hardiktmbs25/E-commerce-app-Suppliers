@@ -16,6 +16,9 @@ abstract class AppConstants {
   // NEW ↓
   static const colBills         = 'bills';
   static const colLedger        = 'ledger';
+  static const colStaff         = 'staff';
+  static const colInventory     = 'inventory';
+  static const colExpenses      = 'expenses';
 
   // ── Hive boxes ────────────────────────────────────────────────────────
   static const boxSettings      = 'settings';
@@ -39,6 +42,10 @@ abstract class AppConstants {
   static const tidBillingModel      = 5;
   static const tidPaymentModel      = 6;
   static const tidLedgerEntryModel  = 7;
+  static const tidRouteModel        = 8;
+  static const tidStaffModel        = 9;
+  static const tidInventoryModel    = 10;
+  static const tidExpenseModel      = 11;
 
   // ── Dimensions ────────────────────────────────────────────────────────
   static const paddingXS   = 4.0;

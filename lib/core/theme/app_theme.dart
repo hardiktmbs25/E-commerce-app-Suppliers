@@ -45,10 +45,11 @@ abstract class AppTheme {
       // ── Card ───────────────────────────────────────────────────────
       cardTheme: CardThemeData(
         color: AppColors.surface,
-        elevation: 0,
+        elevation: 2, // Slight elevation for better separation
+        shadowColor: AppColors.cardShadow,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border, width: 0.8),
+          borderRadius: BorderRadius.circular(20), // More rounded
+          side: const BorderSide(color: AppColors.border, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -100,14 +101,14 @@ abstract class AppTheme {
           elevation: 0,
           shadowColor: Colors.transparent,
           padding:
-          const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          const EdgeInsets.symmetric(horizontal: 24, vertical: 18), // Increased height
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16), // More rounded
           ),
           textStyle: const TextStyle(
             fontFamily: 'Poppins',
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+            fontSize: 16, // Larger text
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -116,16 +117,16 @@ abstract class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary),
+          side: const BorderSide(color: AppColors.primary, width: 2), // Thicker border
           padding:
-          const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          const EdgeInsets.symmetric(horizontal: 24, vertical: 18), // Increased height
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16), // More rounded
           ),
           textStyle: const TextStyle(
             fontFamily: 'Poppins',
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+            fontSize: 16, // Larger text
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

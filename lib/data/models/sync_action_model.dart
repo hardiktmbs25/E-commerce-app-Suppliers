@@ -20,6 +20,11 @@ enum SyncActionType {
   updateBill,
   recordBillPayment,
   createLedgerEntry,
+  recordExpense,
+  updateStock,
+  createRoute,
+  addStaff,
+  updateWallet,
 }
 
 @HiveType(typeId: AppConstants.tidSyncAction)
@@ -28,10 +33,10 @@ class SyncActionModel extends HiveObject {
   @HiveField(1) final String actionTypeStr;
   @HiveField(2) final String collection;
   @HiveField(3) final String? documentId;
-  @HiveField(4) final Map<String, dynamic> payload;
+  @HiveField(4, defaultValue: {}) final Map<String, dynamic> payload;
   @HiveField(5) final DateTime createdAt;
-  @HiveField(6) int retryCount;
-  @HiveField(7) bool isFailed;
+  @HiveField(6, defaultValue: 0) int retryCount;
+  @HiveField(7, defaultValue: false) bool isFailed;
   @HiveField(8) final String? localId;
 
   SyncActionModel({

@@ -21,17 +21,21 @@ class CustomerModel extends HiveObject {
   @HiveField(9)  final String serviceTypeStr;
   @HiveField(10) final String statusStr;
   @HiveField(11) final String paymentStatusStr;
-  @HiveField(12) final double pendingAmount;
-  @HiveField(13) final double totalPaid;
+  @HiveField(12, defaultValue: 0.0) final double pendingAmount;
+  @HiveField(13, defaultValue: 0.0) final double totalPaid;
   @HiveField(14) final String? notes;
   @HiveField(15) final DateTime createdAt;
   @HiveField(16) final DateTime updatedAt;
-  @HiveField(17) final int deliveryOrder;  // sequence in route
+  @HiveField(17, defaultValue: 0) final int deliveryOrder;  // sequence in route
   @HiveField(18) final String? profileImageUrl;
-  @HiveField(19) final Map<String, dynamic> metadata;
-  @HiveField(20) final List<String> activeSubscriptionIds;
-  @HiveField(21) final String billingType; // 'daily', 'weekly', 'monthly'
-  @HiveField(22) final double walletBalance;
+  @HiveField(19, defaultValue: {}) final Map<String, dynamic> metadata;
+  @HiveField(20, defaultValue: []) final List<String> activeSubscriptionIds;
+  @HiveField(21, defaultValue: 'monthly') final String billingType; // 'daily', 'weekly', 'monthly'
+  @HiveField(22, defaultValue: 0.0) final double walletBalance;
+  @HiveField(23) final DateTime? pauseStartDate;
+  @HiveField(24) final DateTime? pauseEndDate;
+  @HiveField(25, defaultValue: 0.0) final double creditLimit;
+  @HiveField(26) final DateTime? lastResumeDate;
 
   CustomerModel({
     required this.id,
@@ -57,6 +61,10 @@ class CustomerModel extends HiveObject {
     this.activeSubscriptionIds = const [],
     this.billingType = 'monthly',
     this.walletBalance = 0,
+    this.pauseStartDate,
+    this.pauseEndDate,
+    this.creditLimit = 0,
+    this.lastResumeDate,
   });
 
   CustomerStatus get status => CustomerStatus.values.firstWhere(
@@ -66,7 +74,18 @@ class CustomerModel extends HiveObject {
           (e) => e.name == paymentStatusStr, orElse: () => PaymentStatus.pending);
 
   bool get isActive => status == CustomerStatus.active;
+  bool get isPaused => status == CustomerStatus.paused;
   bool get hasPendingAmount => pendingAmount > 0;
+
+  bool isDeliveryPaused(DateTime date) {
+    if (status != CustomerStatus.paused) return false;
+    if (pauseStartDate == null) return true;
+    if (pauseEndDate == null) {
+      return date.isAfter(pauseStartDate!) || date.isAtSameMomentAs(pauseStartDate!);
+    }
+    return (date.isAfter(pauseStartDate!) || date.isAtSameMomentAs(pauseStartDate!)) &&
+           (date.isBefore(pauseEndDate!) || date.isAtSameMomentAs(pauseEndDate!));
+  }
 
   factory CustomerModel.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -94,6 +113,10 @@ class CustomerModel extends HiveObject {
       activeSubscriptionIds: List<String>.from(d['activeSubscriptionIds'] ?? []),
       billingType:           d['billingType'] ?? 'monthly',
       walletBalance:         (d['walletBalance'] ?? 0.0).toDouble(),
+      pauseStartDate:        (d['pauseStartDate'] as Timestamp?)?.toDate(),
+      pauseEndDate:          (d['pauseEndDate'] as Timestamp?)?.toDate(),
+      creditLimit:           (d['creditLimit'] ?? 0.0).toDouble(),
+      lastResumeDate:        (d['lastResumeDate'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -120,6 +143,10 @@ class CustomerModel extends HiveObject {
     'activeSubscriptionIds': activeSubscriptionIds,
     'billingType':           billingType,
     'walletBalance':         walletBalance,
+    'pauseStartDate':        pauseStartDate != null ? Timestamp.fromDate(pauseStartDate!) : null,
+    'pauseEndDate':          pauseEndDate != null ? Timestamp.fromDate(pauseEndDate!) : null,
+    'creditLimit':           creditLimit,
+    'lastResumeDate':        lastResumeDate != null ? Timestamp.fromDate(lastResumeDate!) : null,
   };
 
   CustomerModel copyWith({
@@ -141,6 +168,10 @@ class CustomerModel extends HiveObject {
     List<String>? activeSubscriptionIds,
     String? billingType,
     double? walletBalance,
+    DateTime? pauseStartDate,
+    DateTime? pauseEndDate,
+    double? creditLimit,
+    DateTime? lastResumeDate,
   }) => CustomerModel(
     id:                    id,
     vendorId:              vendorId,
@@ -165,5 +196,9 @@ class CustomerModel extends HiveObject {
     activeSubscriptionIds: activeSubscriptionIds ?? this.activeSubscriptionIds,
     billingType:           billingType ?? this.billingType,
     walletBalance:         walletBalance ?? this.walletBalance,
+    pauseStartDate:        pauseStartDate ?? this.pauseStartDate,
+    pauseEndDate:          pauseEndDate ?? this.pauseEndDate,
+    creditLimit:           creditLimit ?? this.creditLimit,
+    lastResumeDate:        lastResumeDate ?? this.lastResumeDate,
   );
 }

@@ -33,13 +33,18 @@ class VendorModelAdapter extends TypeAdapter<VendorModel> {
       totalRevenue: fields[13] as double,
       totalCustomers: fields[14] as int,
       settings: (fields[15] as Map).cast<String, dynamic>(),
+      areas: fields[16] == null ? [] : (fields[16] as List).cast<String>(),
+      timeSlots: fields[17] == null
+          ? ['07:00 AM']
+          : (fields[17] as List).cast<String>(),
+      planName: fields[18] == null ? 'Basic' : fields[18] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, VendorModel obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -71,7 +76,13 @@ class VendorModelAdapter extends TypeAdapter<VendorModel> {
       ..writeByte(14)
       ..write(obj.totalCustomers)
       ..writeByte(15)
-      ..write(obj.settings);
+      ..write(obj.settings)
+      ..writeByte(16)
+      ..write(obj.areas)
+      ..writeByte(17)
+      ..write(obj.timeSlots)
+      ..writeByte(18)
+      ..write(obj.planName);
   }
 
   @override

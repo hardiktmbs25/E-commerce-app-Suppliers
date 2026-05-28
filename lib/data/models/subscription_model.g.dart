@@ -33,20 +33,23 @@ class SubscriptionModelAdapter extends TypeAdapter<SubscriptionModel> {
       endDate: fields[13] as DateTime?,
       pausedUntil: fields[14] as DateTime?,
       nextDeliveryDate: fields[15] as DateTime?,
-      customDays: (fields[16] as List).cast<int>(),
-      completedDeliveries: fields[17] as int,
-      pendingDeliveries: fields[18] as int,
+      customDays: fields[16] == null ? [] : (fields[16] as List).cast<int>(),
+      completedDeliveries: fields[17] == null ? 0 : fields[17] as int,
+      pendingDeliveries: fields[18] == null ? 0 : fields[18] as int,
       notes: fields[19] as String?,
       createdAt: fields[20] as DateTime,
       updatedAt: fields[21] as DateTime,
-      deliverySlots: (fields[22] as List).cast<String>(),
+      deliverySlots:
+          fields[22] == null ? [] : (fields[22] as List).cast<String>(),
+      vacationMode: fields[23] == null ? false : fields[23] as bool,
+      autoResume: fields[24] == null ? true : fields[24] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, SubscriptionModel obj) {
     writer
-      ..writeByte(23)
+      ..writeByte(25)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -92,7 +95,11 @@ class SubscriptionModelAdapter extends TypeAdapter<SubscriptionModel> {
       ..writeByte(21)
       ..write(obj.updatedAt)
       ..writeByte(22)
-      ..write(obj.deliverySlots);
+      ..write(obj.deliverySlots)
+      ..writeByte(23)
+      ..write(obj.vacationMode)
+      ..writeByte(24)
+      ..write(obj.autoResume);
   }
 
   @override

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 extension StringExtensions on String {
-  String get capitalize => isEmpty ? '' : '${this[0].toUpperCase()}${substring(1)}';
-  String get titleCase => split(' ').map((w) => w.capitalize).join(' ');
+  String get toCapitalCase => isEmpty ? '' : '${this[0].toUpperCase()}${substring(1)}';
+  String get titleCase => split(' ').map((w) => w.toCapitalCase).join(' ');
   bool get isValidEmail => RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(this);
   bool get isValidPhone => RegExp(r'^[0-9]\d{9}$').hasMatch(this);
   bool get isValidName => trim().length >= 2;

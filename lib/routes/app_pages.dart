@@ -1,58 +1,90 @@
 // lib/routes/app_pages.dart
-import 'package:e_commerce_suppliers/module/deliveries/add/add_delivery_binding.dart';
-import 'package:e_commerce_suppliers/module/deliveries/add/add_delivery_screen.dart';
+import 'package:e_commerce_suppliers/modules/deliveries/add/add_delivery_binding.dart';
+import 'package:e_commerce_suppliers/modules/deliveries/add/add_delivery_screen.dart';
 import 'package:get/get.dart';
 import '../data/repositories/billing_repository.dart';
-import '../module/analytics/analytics_binding.dart';
-import '../module/analytics/analytics_screen.dart';
-import '../module/auth/forgot_password/forgot_password_binding.dart';
-import '../module/auth/forgot_password/forgot_password_screen.dart';
-import '../module/auth/login/login_binding.dart';
-import '../module/auth/login/login_screen.dart';
-import '../module/auth/onboarding/onboarding_binding.dart';
-import '../module/auth/onboarding/onboarding_screen.dart';
-import '../module/auth/register/register_binding.dart';
-import '../module/auth/register/register_screen.dart';
-import '../module/auth/splash/splash_binding.dart';
-import '../module/auth/splash/splash_screen.dart';
-import '../module/billing/billing_binding.dart';
-import '../module/billing/billing_screen.dart';
-import '../module/billing/customer_ledger_screen.dart';
-import '../module/billing/payment_history_screen.dart';
-import '../module/customers/add/add_customer_binding.dart';
-import '../module/customers/add/add_customer_screen.dart';
-import '../module/customers/customers_binding.dart';
-import '../module/customers/customers_screen.dart';
-import '../module/customers/detail/customer_detail_binding.dart';
-import '../module/customers/detail/customer_detail_screen.dart';
-import '../module/dashboard/dashboard_binding.dart';
-import '../module/dashboard/dashboard_screen.dart';
-import '../module/deliveries/deliveries_binding.dart';
-import '../module/deliveries/deliveries_screen.dart';
-import '../module/deliveries/detail/delivery_detail_binding.dart';
-import '../module/deliveries/detail/delivery_detail_screen.dart';
-import '../module/deliveries/extra_order/extra_order_binding.dart';
-import '../module/deliveries/extra_order/extra_order_screen.dart';
-import '../module/deliveries/history/delivery_history_binding.dart';
-import '../module/deliveries/history/delivery_history_screen.dart';
-import '../module/notifications/notifications_binding.dart';
-import '../module/notifications/notifications_screen.dart';
-import '../module/payments/payments_binding.dart';
-import '../module/payments/payments_screen.dart';
-import '../module/profile/profile_binding.dart';
-import '../module/profile/profile_screen.dart';
-import '../module/settings/settings_binding.dart';
-import '../module/settings/settings_screen.dart';
-import '../module/subscriptions/add/add_subscription_binding.dart';
-import '../module/subscriptions/add/add_subscription_screen.dart';
-import '../module/subscriptions/global_plans/global_plans_binding.dart';
-import '../module/subscriptions/global_plans/global_plans_screen.dart';
-import '../module/subscriptions/subscriptions_binding.dart';
-import '../module/subscriptions/subscriptions_screen.dart';
+import '../modules/analytics/analytics_binding.dart';
+import '../modules/analytics/analytics_screen.dart';
+import '../modules/auth/forgot_password/forgot_password_binding.dart';
+import '../modules/auth/forgot_password/forgot_password_screen.dart';
+import '../modules/auth/login/login_binding.dart';
+import '../modules/auth/login/login_screen.dart';
+import '../modules/auth/onboarding/onboarding_binding.dart';
+import '../modules/auth/onboarding/onboarding_screen.dart';
+import '../modules/auth/register/register_binding.dart';
+import '../modules/auth/register/register_screen.dart';
+import '../modules/auth/splash/splash_binding.dart';
+import '../modules/auth/splash/splash_screen.dart';
+import '../modules/billing/billing_binding.dart';
+import '../modules/billing/billing_screen.dart';
+import '../modules/billing/customer_ledger_screen.dart';
+import '../modules/billing/payment_history_screen.dart';
+import '../modules/customers/add/add_customer_binding.dart';
+import '../modules/customers/add/add_customer_screen.dart';
+import '../modules/customers/customers_binding.dart';
+import '../modules/customers/customers_screen.dart';
+import '../modules/customers/detail/customer_detail_binding.dart';
+import '../modules/customers/detail/customer_detail_screen.dart';
+import '../modules/dashboard/dashboard_binding.dart';
+import '../modules/dashboard/dashboard_screen.dart';
+import '../modules/deliveries/deliveries_binding.dart';
+import '../modules/deliveries/deliveries_screen.dart';
+import '../modules/deliveries/detail/delivery_detail_binding.dart';
+import '../modules/deliveries/detail/delivery_detail_screen.dart';
+import '../modules/deliveries/extra_order/extra_order_binding.dart';
+import '../modules/deliveries/extra_order/extra_order_screen.dart';
+import '../modules/deliveries/history/delivery_history_binding.dart';
+import '../modules/deliveries/history/delivery_history_screen.dart';
+import '../modules/notifications/notifications_binding.dart';
+import '../modules/notifications/notifications_screen.dart';
+import '../modules/payments/payments_binding.dart';
+import '../modules/payments/payments_screen.dart';
+import '../modules/profile/profile_binding.dart';
+import '../modules/profile/profile_screen.dart';
+import '../modules/settings/settings_binding.dart';
+import '../modules/settings/settings_screen.dart';
+import '../modules/subscriptions/add/add_subscription_binding.dart';
+import '../modules/subscriptions/add/add_subscription_screen.dart';
+import '../modules/subscriptions/global_plans/global_plans_binding.dart';
+import '../modules/subscriptions/global_plans/global_plans_screen.dart';
+import '../modules/subscriptions/subscriptions_binding.dart';
+import '../modules/subscriptions/subscriptions_screen.dart';
+import '../modules/routes/routes_binding.dart';
+import '../modules/routes/routes_screen.dart';
+import '../modules/staff/staff_binding.dart';
+import '../modules/staff/staff_screen.dart';
+import '../modules/inventory/inventory_binding.dart';
+import '../modules/inventory/inventory_screen.dart';
+import '../modules/expenses/expenses_binding.dart';
+import '../modules/expenses/expenses_screen.dart';
 import 'app_routes.dart';
 
 abstract class AppPages {
   static final routes = <GetPage>[
+    GetPage(
+      name: Routes.routeList,
+      page: () => const RoutesScreen(),
+      binding: RoutesBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.staffList,
+      page: () => const StaffScreen(),
+      binding: StaffBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.inventory,
+      page: () => const InventoryScreen(),
+      binding: InventoryBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.expenses,
+      page: () => const ExpensesScreen(),
+      binding: ExpensesBinding(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: Routes.customerLedger,
       page: () => const CustomerLedgerScreen(),

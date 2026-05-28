@@ -21,16 +21,19 @@ class DeliveryModel extends HiveObject {
   @HiveField(11) final DateTime scheduledDate;
   @HiveField(12) final DateTime? deliveredAt;
   @HiveField(13) final String? notes;
-  @HiveField(14) final bool isPaid;
-  @HiveField(15) final bool isSynced;          // offline sync flag
+  @HiveField(14, defaultValue: false) final bool isPaid;
+  @HiveField(15, defaultValue: true) final bool isSynced;          // offline sync flag
   @HiveField(16) final DateTime createdAt;
   @HiveField(17) final DateTime updatedAt;
   @HiveField(18) final String? routeId;
-  @HiveField(19) final int routeOrder;
-  @HiveField(20) final String deliverySlot;
-  @HiveField(21) final bool isExtraOrder;
-  @HiveField(22) final bool billGenerated;
+  @HiveField(19, defaultValue: 0) final int routeOrder;
+  @HiveField(20, defaultValue: '07:00 AM') final String deliverySlot;
+  @HiveField(21, defaultValue: false) final bool isExtraOrder;
+  @HiveField(22, defaultValue: false) final bool billGenerated;
   @HiveField(23) final String? invoiceId;
+  @HiveField(24) final String? proofImageUrl;
+  @HiveField(25) final String? signatureUrl;
+  @HiveField(26) final String? deliveryOtp;
 
   DeliveryModel({
     required this.id,
@@ -57,6 +60,9 @@ class DeliveryModel extends HiveObject {
     this.isExtraOrder = false,
     this.billGenerated = false,
     this.invoiceId,
+    this.proofImageUrl,
+    this.signatureUrl,
+    this.deliveryOtp,
   });
 
   DeliveryStatus get status => DeliveryStatus.values.firstWhere(
@@ -109,6 +115,9 @@ class DeliveryModel extends HiveObject {
       isExtraOrder:    d['isExtraOrder'] ?? false,
       billGenerated:   d['billGenerated'] ?? false,
       invoiceId:       d['invoiceId'],
+      proofImageUrl:   d['proofImageUrl'],
+      signatureUrl:    d['signatureUrl'],
+      deliveryOtp:     d['deliveryOtp'],
     );
   }
 
@@ -135,6 +144,9 @@ class DeliveryModel extends HiveObject {
     'isExtraOrder':    isExtraOrder,
     'billGenerated':   billGenerated,
     'invoiceId':       invoiceId,
+    'proofImageUrl':   proofImageUrl,
+    'signatureUrl':    signatureUrl,
+    'deliveryOtp':     deliveryOtp,
   };
 
   DeliveryModel copyWith({
@@ -145,6 +157,9 @@ class DeliveryModel extends HiveObject {
     bool? isSynced,
     bool? billGenerated,
     String? invoiceId,
+    String? proofImageUrl,
+    String? signatureUrl,
+    String? deliveryOtp,
   }) => DeliveryModel(
     id: id, vendorId: vendorId, customerId: customerId,
     customerName: customerName, customerAddress: customerAddress,
@@ -161,5 +176,8 @@ class DeliveryModel extends HiveObject {
     deliverySlot: deliverySlot, isExtraOrder: isExtraOrder,
     billGenerated: billGenerated ?? this.billGenerated,
     invoiceId:     invoiceId ?? this.invoiceId,
+    proofImageUrl: proofImageUrl ?? this.proofImageUrl,
+    signatureUrl:  signatureUrl ?? this.signatureUrl,
+    deliveryOtp:   deliveryOtp ?? this.deliveryOtp,
   );
 }
