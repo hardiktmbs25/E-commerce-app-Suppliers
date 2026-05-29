@@ -37,15 +37,15 @@ class SubscriptionRepository {
     return _db
         .collection(_col(vendorId))
         .where('status', whereIn: [
-      SubscriptionStatus.active.name,
-      SubscriptionStatus.paused.name,
-    ])
-        .orderBy('customerName')
+          SubscriptionStatus.active.name,
+          SubscriptionStatus.paused.name,
+        ])
         .snapshots()
         .map((snap) {
       final subs = snap.docs
           .map((d) => SubscriptionModel.fromFirestore(d))
-          .toList();
+          .toList()
+        ..sort((a, b) => a.customerName.compareTo(b.customerName));
       LocalStorageService.saveSubscriptions(subs);
       return subs;
     })
@@ -54,6 +54,7 @@ class SubscriptionRepository {
       return LocalStorageService.getSubscriptions();
     });
   }
+
 
   // ── Fetch for customer ────────────────────────────────────────────────────
   // FIX #1: added vendorId filter so vendors never see each other's data.
@@ -165,6 +166,29 @@ class SubscriptionRepository {
       'status':    SubscriptionStatus.cancelled.name,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<Result<void>> updateSubscription(
+      String vendorId, SubscriptionModel sub) async {
+    // Write to local cache immediately
+    await LocalStorageService.saveSubscription(sub);
+
+    if (_connectivity.isOnline.value) {
+      try {
+        await _db
+            .collection(_col(vendorId))
+            .doc(sub.id)
+            .update(sub.toFirestore());
+        return const Result.success(null);
+      } catch (e) {
+        AppLogger.e('updateSubscription Firestore error — queued', e);
+        await _enqueueUpdate(vendorId, sub.id, sub.toFirestore());
+        return const Result.success(null);
+      }
+    } else {
+      await _enqueueUpdate(vendorId, sub.id, sub.toFirestore());
+      return const Result.success(null);
+    }
   }
 
   // ── Internal helpers ──────────────────────────────────────────────────────

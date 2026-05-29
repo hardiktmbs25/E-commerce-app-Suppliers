@@ -1,5 +1,9 @@
 // lib/data/models/plan_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
+import '../../core/constants/app_constants.dart';
+
+part 'plan_model.g.dart';
 
 /// A vendor-defined plan template.
 /// Firestore path: vendors/{vendorId}/plans/{planId}
@@ -13,28 +17,29 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// • [pricePerDelivery] — computed getter, never stored as a denormalised
 ///   field that can go stale.
 /// • Full null-safe Firestore parsing via [_safe*] helpers.
-class PlanModel {
-  final String id;
-  final String vendorId;
+@HiveType(typeId: AppConstants.tidPlanModel)
+class PlanModel extends HiveObject {
+  @HiveField(0) final String id;
+  @HiveField(1) final String vendorId;
 
   /// e.g. "Silver Milk Plan"
-  final String name;
+  @HiveField(2) final String name;
 
   /// One of kServiceTypes: milk | water | newspaper | tiffin | grocery | custom
-  final String serviceType;
+  @HiveField(3) final String serviceType;
 
   /// One of kFrequencies: daily | twice_daily | thrice_daily |
   ///   alternate | weekdays | weekends | weekly
-  final String frequencyStr;
+  @HiveField(4) final String frequencyStr;
 
   /// Quantity per single delivery slot (e.g. 1.5 litres).
-  final double quantity;
+  @HiveField(5) final double quantity;
 
   /// Unit for [quantity] — e.g. 'litre', 'can', 'piece'.
-  final String unit;
+  @HiveField(6) final String unit;
 
   /// Price charged per unit.
-  final double pricePerUnit;
+  @HiveField(7) final double pricePerUnit;
 
   /// Computed: quantity × pricePerUnit (cost of one delivery slot).
   double get pricePerDelivery => quantity * pricePerUnit;
@@ -43,18 +48,18 @@ class PlanModel {
   ///   1 ID  → once daily
   ///   2 IDs → twice daily
   ///   3 IDs → thrice daily
-  final List<String> deliverySlotIds;
+  @HiveField(8) final List<String> deliverySlotIds;
 
   /// DeliveryAreaModel document IDs where this plan is available.
   /// If empty, it means "All Areas" or default.
-  final List<String> deliveryAreaIds;
+  @HiveField(9) final List<String> deliveryAreaIds;
 
-  final String description;
-  final bool isActive;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  @HiveField(10) final String description;
+  @HiveField(11) final bool isActive;
+  @HiveField(12) final DateTime createdAt;
+  @HiveField(13) final DateTime updatedAt;
 
-  const PlanModel({
+  PlanModel({
     required this.id,
     required this.vendorId,
     required this.name,
@@ -70,6 +75,7 @@ class PlanModel {
     required this.createdAt,
     required this.updatedAt,
   });
+
 
   // ── Firestore ────────────────────────────────────────────────────────────
 

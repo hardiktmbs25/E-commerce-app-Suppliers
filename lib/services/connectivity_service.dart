@@ -3,10 +3,6 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get/get.dart';
 import '../core/utils/logger.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../core/constants/app_constants.dart';
-import '../data/models/sync_action_model.dart';
-import 'local_storage_service.dart';
 import 'sync_service.dart';
 
 /// Monitors device connectivity and exposes a reactive [isOnline] flag.

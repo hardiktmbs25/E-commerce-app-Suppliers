@@ -2,11 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../data/models/customer_model.dart';
 import '../data/models/wallet_transaction_model.dart';
-import '../data/repositories/customer_repository.dart';
 
 class WalletService extends GetxService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final CustomerRepository _customerRepo = Get.find();
 
   Future<void> addBalance(CustomerModel customer, double amount, String description) async {
     final transaction = WalletTransactionModel(

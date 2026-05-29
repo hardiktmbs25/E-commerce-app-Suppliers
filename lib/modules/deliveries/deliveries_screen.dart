@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/extensions.dart';
 import '../../data/models/delivery_model.dart';
+import '../../services/local_storage_service.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/shimmer_box.dart';
 import 'deliveries_controller.dart';
@@ -41,23 +42,24 @@ class DeliveriesScreen extends StatelessWidget {
           ),
           // Mark All button
           Obx(
-            () => ctrl.pendingCount > 0
+                () => ctrl.pendingCount > 0
                 ? TextButton.icon(
-                    onPressed: ctrl.markAllDelivered,
-                    icon: const Icon(Icons.done_all_rounded, size: 16),
-                    label: const Text(
-                      'Mark All',
-                      style: TextStyle(fontSize: 12, fontFamily: 'Poppins'),
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.success,
-                    ),
-                  )
+              onPressed: ctrl.markAllDelivered,
+              icon: const Icon(Icons.done_all_rounded, size: 16),
+              label: const Text(
+                'Mark All',
+                style: TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.success,
+              ),
+            )
                 : const SizedBox(),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab_deliveries',
         onPressed: ctrl.goToAddDelivery,
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
@@ -75,7 +77,7 @@ class DeliveriesScreen extends StatelessWidget {
         children: [
           // Summary bar
           Obx(
-            () => Container(
+                () => Container(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
               decoration: BoxDecoration(
@@ -129,11 +131,11 @@ class DeliveriesScreen extends StatelessWidget {
                 ),
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 suffixIcon: Obx(
-                  () => ctrl.searchQuery.value.isNotEmpty
+                      () => ctrl.searchQuery.value.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 18),
-                          onPressed: ctrl.clearSearch,
-                        )
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    onPressed: ctrl.clearSearch,
+                  )
                       : const SizedBox(),
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 11),
@@ -163,56 +165,90 @@ class DeliveriesScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Obx(
-              () => SingleChildScrollView(
+                  () => SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children:
-                      [
-                        'all',
-                        'pending',
-                        'delivered',
-                        'missed',
-                        'cancelled',
-                      ].map((f) {
-                        final isSelected = ctrl.statusFilter.value == f;
-                        return GestureDetector(
-                          onTap: () => ctrl.statusFilter.value = f,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.surface,
-                              borderRadius: BorderRadius.circular(100),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                              ),
-                            ),
-                            child: Text(
-                              f.toCapitalCase,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textSecondary,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
+                  [
+                    'all',
+                    'pending',
+                    'delivered',
+                    'missed',
+                    'cancelled',
+                  ].map((f) {
+                    final isSelected = ctrl.statusFilter.value == f;
+                    return GestureDetector(
+                      onTap: () => ctrl.statusFilter.value = f,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.surface,
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.border,
                           ),
-                        );
-                      }).toList(),
+                        ),
+                        child: Text(
+                          f.toCapitalCase,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textSecondary,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ),
           ),
+          const SizedBox(height: 6),
+
+          // Time-slot filter chips
+          Obx(() {
+            if (ctrl.availableSlots.isEmpty) return const SizedBox.shrink();
+            final allSlots = LocalStorageService.getTimeSlots();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    // "All Slots" reset chip
+                    _SlotChip(
+                      label: 'All Slots',
+                      isSelected: ctrl.slotFilter.value.isEmpty,
+                      onTap: ctrl.clearSlotFilter,
+                      icon: Icons.access_time_rounded,
+                    ),
+                    ...ctrl.availableSlots.map((startTime) {
+                      final slot = allSlots.firstWhereOrNull((s) => s.startTime == startTime);
+                      final label = slot?.label ?? startTime;
+                      final isSelected = ctrl.slotFilter.value == startTime;
+                      return _SlotChip(
+                        label: label,
+                        isSelected: isSelected,
+                        onTap: () => ctrl.slotFilter.value = startTime,
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            );
+          }),
           const SizedBox(height: 8),
 
           // List
@@ -368,18 +404,18 @@ class _DeliveryCard extends StatelessWidget {
                   child: Center(
                     child: isMarking
                         ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: statusColor,
-                            ),
-                          )
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: statusColor,
+                      ),
+                    )
                         : Icon(
-                            Icons.local_shipping_rounded,
-                            color: statusColor,
-                            size: 20,
-                          ),
+                      Icons.local_shipping_rounded,
+                      color: statusColor,
+                      size: 20,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -642,5 +678,59 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(height: 32, width: 0.8, color: AppColors.border);
+  }
+}
+
+class _SlotChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  const _SlotChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : AppColors.surface,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon ?? Icons.schedule_rounded,
+              size: 13,
+              color: isSelected ? AppColors.primary : AppColors.textHint,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

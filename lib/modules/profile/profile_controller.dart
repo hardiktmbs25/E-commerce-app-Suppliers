@@ -22,11 +22,7 @@ class ProfileController extends GetxController {
   final addressCtrl   = TextEditingController();
   final cityCtrl      = TextEditingController();
   final planNameCtrl  = TextEditingController();
-  final areaCtrl      = TextEditingController(); // for adding new area
-  final timeSlotCtrl  = TextEditingController(); // for adding new slot
 
-  final RxList<String> areasList     = <String>[].obs;
-  final RxList<String> timeSlotsList = <String>[].obs;
   final Rxn<VendorModel> vendor    = Rxn<VendorModel>();
   final Rxn<File>        newImage  = Rxn<File>();
   final RxBool  isEditing          = false.obs;
@@ -65,27 +61,7 @@ class ProfileController extends GetxController {
     cityCtrl.text     = v.city;
     planNameCtrl.text = v.planName;
     selectedService.value = v.serviceTypeStr;
-    areasList.value = List.from(v.areas);
-    timeSlotsList.value = List.from(v.timeSlots);
   }
-
-  void addArea() {
-    if (areaCtrl.text.isNotEmpty) {
-      areasList.add(areaCtrl.text.trim());
-      areaCtrl.clear();
-    }
-  }
-
-  void removeArea(int index) => areasList.removeAt(index);
-
-  void addTimeSlot() {
-    if (timeSlotCtrl.text.isNotEmpty) {
-      timeSlotsList.add(timeSlotCtrl.text.trim());
-      timeSlotCtrl.clear();
-    }
-  }
-
-  void removeTimeSlot(int index) => timeSlotsList.removeAt(index);
 
   void toggleStatus() {
     if (vendor.value == null) return;
@@ -123,8 +99,6 @@ class ProfileController extends GetxController {
       city:           cityCtrl.text.trim(),
       planName:       planNameCtrl.text.trim(),
       serviceTypeStr: selectedService.value,
-      areas:          areasList,
-      timeSlots:      timeSlotsList,
     );
 
     final result = await _vendorRepo.updateVendor(
@@ -143,6 +117,7 @@ class ProfileController extends GetxController {
     );
     isSaving.value = false;
   }
+
 
   Future<void> logout() async {
     final confirm = await showConfirmDialog(
@@ -167,8 +142,6 @@ class ProfileController extends GetxController {
     addressCtrl.dispose();
     cityCtrl.dispose();
     planNameCtrl.dispose();
-    areaCtrl.dispose();
-    timeSlotCtrl.dispose();
     super.onClose();
   }
 }

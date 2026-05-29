@@ -1,10 +1,11 @@
 // lib/modules/deliveries/add/add_delivery_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/customer_model.dart';
-import '../../../data/models/delivery_model.dart';
 import '../../../data/models/subscription_model.dart';
+import '../../../data/repositories/customer_repository.dart';
 import '../../../data/repositories/delivery_repository.dart';
 import '../../../services/local_storage_service.dart';
 
@@ -24,9 +25,13 @@ class AddDeliveryController extends GetxController {
   final Rx<SubscriptionModel?>  selectedSubscription = Rx<SubscriptionModel?>(null);
   final Rx<DateTime>            scheduledDate        = DateTime.now().obs;
   final RxBool                  isSubmitting         = false.obs;
+  final RxBool                  saveAsCustomer       = false.obs;
 
   // ── Manual form controllers ────────────────────────────────────────────
   final customerSearchCtrl = TextEditingController();
+  final customerAddressCtrl = TextEditingController();
+  final customerPhoneCtrl   = TextEditingController();
+
   final quantityCtrl       = TextEditingController(text: '1');
   final amountCtrl         = TextEditingController();
   final notesCtrl          = TextEditingController();
@@ -128,11 +133,13 @@ class AddDeliveryController extends GetxController {
 
   // ── Validation ─────────────────────────────────────────────────────────
   String? _validate() {
-    if (selectedCustomer.value == null) return 'Please select a customer.';
-    if (deliveryType.value == AddDeliveryType.fromSubscription &&
-        selectedSubscription.value == null) {
-      return 'Please select a subscription.';
+    if (deliveryType.value == AddDeliveryType.fromSubscription) {
+       if (selectedCustomer.value == null) return 'Please select a customer.';
+       if (selectedSubscription.value == null) return 'Please select a subscription.';
+    } else {
+       if (customerSearchCtrl.text.trim().isEmpty) return 'Please enter customer name.';
     }
+    
     final qty = double.tryParse(quantityCtrl.text.trim()) ?? 0;
     if (qty <= 0) return 'Enter a valid quantity.';
     final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
@@ -155,24 +162,55 @@ class AddDeliveryController extends GetxController {
 
     isSubmitting.value = true;
 
-    final customer = selectedCustomer.value!;
-    final sub      = selectedSubscription.value;
+    String customerId;
+    String customerName;
+    String customerAddress;
+
+    if (selectedCustomer.value != null) {
+      customerId = selectedCustomer.value!.id;
+      customerName = selectedCustomer.value!.name;
+      customerAddress = selectedCustomer.value!.address;
+    } else {
+      // Custom/Temporary customer
+      customerName = customerSearchCtrl.text.trim();
+      customerAddress = customerAddressCtrl.text.trim();
+      
+      if (saveAsCustomer.value) {
+        // QUICK ADD CUSTOMER
+        final custResult = await Get.find<CustomerRepository>().createCustomer(
+          vendorId: vendorId!,
+          name: customerName,
+          address: customerAddress,
+          phone: customerPhoneCtrl.text.trim(),
+          serviceType: serviceType.value,
+        );
+        
+        if (custResult.isSuccess) {
+           customerId = custResult.data!.id;
+        } else {
+           customerId = 'temp_${const Uuid().v4()}';
+        }
+      } else {
+        customerId = 'temp_${const Uuid().v4()}';
+      }
+    }
+
     final qty      = double.parse(quantityCtrl.text.trim());
     final amount   = double.parse(amountCtrl.text.trim());
     final notes    = notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim();
 
     final result = await _repo.placeExtraOrder(
       vendorId:        vendorId!,
-      customerId:      customer.id,
-      customerName:    customer.name,
-      customerAddress: customer.address,
+      customerId:      customerId,
+      customerName:    customerName,
+      customerAddress: customerAddress,
       serviceType:     serviceType.value,
       quantity:        qty,
       unit:            unit.value,
       amount:          amount,
       notes:           notes,
-      // Pass subscription ID when created from subscription tab
     );
+
 
     isSubmitting.value = false;
 
@@ -185,7 +223,7 @@ class AddDeliveryController extends GetxController {
         Get.back(result: delivery);
         Get.snackbar(
           '✅ Delivery Added',
-          'Delivery for ${customer.name} on ${_formatDate(scheduledDate.value)} created.',
+          'Delivery for $customerName on ${_formatDate(scheduledDate.value)} created.',
           snackPosition: SnackPosition.TOP,
           duration: const Duration(seconds: 3),
         );

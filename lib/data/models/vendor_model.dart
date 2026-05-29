@@ -24,9 +24,8 @@ class VendorModel extends HiveObject {
   @HiveField(13) final double totalRevenue;
   @HiveField(14) final int totalCustomers;
   @HiveField(15) final Map<String, dynamic> settings;
-  @HiveField(16, defaultValue: []) final List<String> areas;
-  @HiveField(17, defaultValue: ['07:00 AM']) final List<String> timeSlots;
-  @HiveField(18, defaultValue: 'Basic') final String planName;
+  @HiveField(16, defaultValue: 'Basic') final String planName;
+  @HiveField(17, defaultValue: false) final bool isOnboardingComplete;
 
    VendorModel({
     required this.id,
@@ -45,9 +44,8 @@ class VendorModel extends HiveObject {
     this.totalRevenue = 0,
     this.totalCustomers = 0,
     this.settings = const {},
-    this.areas = const [],
-    this.timeSlots = const ['07:00 AM'],
     this.planName = 'Basic',
+    this.isOnboardingComplete = false,
   });
 
   ServiceType get serviceType => ServiceType.values.firstWhere(
@@ -85,9 +83,8 @@ class VendorModel extends HiveObject {
       totalRevenue:   (d['totalRevenue'] ?? 0).toDouble(),
       totalCustomers: d['totalCustomers'] ?? 0,
       settings:       Map<String, dynamic>.from(d['settings'] ?? {}),
-      areas:          List<String>.from(d['areas'] ?? []),
-      timeSlots:      List<String>.from(d['timeSlots'] ?? ['07:00 AM']),
       planName:       d['planName'] ?? 'Basic',
+      isOnboardingComplete: d['isOnboardingComplete'] ?? false,
     );
   }
 
@@ -107,9 +104,8 @@ class VendorModel extends HiveObject {
     'totalRevenue':    totalRevenue,
     'totalCustomers':  totalCustomers,
     'settings':        settings,
-    'areas':           areas,
-    'timeSlots':       timeSlots,
     'planName':        planName,
+    'isOnboardingComplete': isOnboardingComplete,
   };
 
   VendorModel copyWith({
@@ -126,9 +122,8 @@ class VendorModel extends HiveObject {
     double? totalRevenue,
     int? totalCustomers,
     Map<String, dynamic>? settings,
-    List<String>? areas,
-    List<String>? timeSlots,
     String? planName,
+    bool? isOnboardingComplete,
   }) => VendorModel(
     id:             id,
     name:           name ?? this.name,
@@ -146,8 +141,7 @@ class VendorModel extends HiveObject {
     totalRevenue:   totalRevenue ?? this.totalRevenue,
     totalCustomers: totalCustomers ?? this.totalCustomers,
     settings:       settings ?? this.settings,
-    areas:          areas ?? this.areas,
-    timeSlots:      timeSlots ?? this.timeSlots,
     planName:       planName ?? this.planName,
+    isOnboardingComplete: isOnboardingComplete ?? this.isOnboardingComplete,
   );
 }

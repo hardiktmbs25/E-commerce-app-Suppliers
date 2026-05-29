@@ -217,6 +217,7 @@ class CustomersScreen extends StatelessWidget {
         ),
       ]),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_customers',
         onPressed: () => Get.toNamed(Routes.addCustomer),
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),

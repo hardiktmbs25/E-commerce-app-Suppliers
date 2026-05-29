@@ -42,6 +42,10 @@ class SplashController extends GetxController {
         Get.offAllNamed(Routes.login);
       },
           (vendor) async {
+            // Update local state
+        await LocalStorageService.setVendorId(user.uid);
+        await LocalStorageService.saveVendor(vendor);
+
             // Update FCM token
         final token = await Get.find<NotificationService>().getToken();
         if (token != null) {

@@ -31,6 +31,10 @@ abstract class AppConstants {
   static const boxBills         = 'bills_cache';
   static const boxPayments      = 'payments_cache';
   static const boxLedger        = 'ledger_cache';
+  static const boxTimeSlots     = 'time_slots_cache';
+  static const boxAreas         = 'areas_cache';
+  static const boxPlans         = 'plans_cache';
+
 
   // ── Hive type IDs ─────────────────────────────────────────────────────
   static const tidVendorModel       = 0;
@@ -46,6 +50,10 @@ abstract class AppConstants {
   static const tidStaffModel        = 9;
   static const tidInventoryModel    = 10;
   static const tidExpenseModel      = 11;
+  static const tidTimeSlotModel     = 12;
+  static const tidDeliveryAreaModel = 13;
+  static const tidPlanModel         = 14;
+
 
   // ── Dimensions ────────────────────────────────────────────────────────
   static const paddingXS   = 4.0;

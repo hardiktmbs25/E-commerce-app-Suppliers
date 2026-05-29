@@ -236,9 +236,12 @@ class SubscriptionModel extends HiveObject {
     String? frequencyStr,
     bool? vacationMode,
     bool? autoResume,
+    String? serviceTypeStr,
+    String? notes,
   }) => SubscriptionModel(
     id: id, vendorId: vendorId, customerId: customerId,
-    customerName: customerName, serviceTypeStr: serviceTypeStr,
+    customerName: customerName, 
+    serviceTypeStr:     serviceTypeStr ?? this.serviceTypeStr,
     frequencyStr:       frequencyStr ?? this.frequencyStr,
     statusStr:          statusStr ?? this.statusStr,
     quantity:           quantity ?? this.quantity,
@@ -253,7 +256,8 @@ class SubscriptionModel extends HiveObject {
     customDays: customDays,
     completedDeliveries: completedDeliveries ?? this.completedDeliveries,
     pendingDeliveries:  pendingDeliveries ?? this.pendingDeliveries,
-    notes: notes, createdAt: createdAt, updatedAt: DateTime.now(),
+    notes:              notes ?? this.notes,
+    createdAt: createdAt, updatedAt: DateTime.now(),
     vacationMode:       vacationMode ?? this.vacationMode,
     autoResume:         autoResume ?? this.autoResume,
   );

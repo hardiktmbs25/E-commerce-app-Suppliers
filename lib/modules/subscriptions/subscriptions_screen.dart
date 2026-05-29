@@ -274,7 +274,26 @@ class SubscriptionsScreen extends StatelessWidget {
                               child: Row(children: [
                                 Expanded(
                                   child: TextButton.icon(
+                                    onPressed: () => Get.toNamed(Routes.addSubscription, arguments: sub),
+                                    icon: const Icon(Icons.edit_rounded, size: 16),
+                                    label: const Text('Edit'),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      textStyle: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          fontFamily: 'Poppins'),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                    width: 1, height: 20, color: AppColors.divider),
+                                Expanded(
+                                  child: TextButton.icon(
                                     onPressed: () => ctrl.togglePause(sub),
+
                                     icon: Icon(
                                       sub.isActive
                                           ? Icons.pause_rounded

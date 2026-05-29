@@ -55,6 +55,12 @@ class DeliveriesController extends GetxController {
   final RxString searchQuery =
       ''.obs;
 
+  /// Currently selected time-slot filter. Empty string = show all slots.
+  final RxString slotFilter = ''.obs;
+
+  /// Time slots loaded for the filter row.
+  final RxList<String> availableSlots = <String>[].obs;
+
   final RxBool isLoading =
       true.obs;
 
@@ -110,6 +116,11 @@ class DeliveriesController extends GetxController {
     ever(statusFilter, (_) => _applyFilter());
 
     ever(searchQuery, (_) => _applyFilter());
+
+    ever(slotFilter, (_) => _applyFilter());
+
+    // Load available time slots for the filter row
+    _loadAvailableSlots();
 
     // Load local cache immediately
     final cached =
@@ -249,6 +260,21 @@ class DeliveriesController extends GetxController {
   }
 
   // ─────────────────────────────────────────────────────────────
+  // Slot Filter helpers
+  // ─────────────────────────────────────────────────────────────
+
+  void _loadAvailableSlots() {
+    final slots = LocalStorageService.getTimeSlots();
+    // Use startTime strings — these match delivery.deliverySlot values
+    availableSlots.assignAll(
+      slots.where((s) => s.isActive).map((s) => s.startTime).toList()
+        ..sort(),
+    );
+  }
+
+  void clearSlotFilter() => slotFilter.value = '';
+
+  // ─────────────────────────────────────────────────────────────
   // Refresh
   // ─────────────────────────────────────────────────────────────
 
@@ -286,6 +312,11 @@ class DeliveriesController extends GetxController {
               statusFilter.value;
         },
       ).toList();
+    }
+
+    // Slot filter
+    if (slotFilter.value.isNotEmpty) {
+      list = list.where((d) => d.deliverySlot == slotFilter.value).toList();
     }
 
     // Search

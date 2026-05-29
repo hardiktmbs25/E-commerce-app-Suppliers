@@ -1,14 +1,14 @@
 // lib/modules/subscriptions/subscriptions_controller.dart
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import '../../data/models/subscription_model.dart';
+import '../../data/repositories/subscription_repository.dart';
+import '../../services/auth_service.dart';
 import '../../services/local_storage_service.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 
 class SubscriptionsController extends GetxController {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final SubscriptionRepository _repo = Get.find<SubscriptionRepository>();
 
   final RxList<SubscriptionModel> allSubs      = <SubscriptionModel>[].obs;
   final RxList<SubscriptionModel> filteredSubs = <SubscriptionModel>[].obs;
@@ -17,18 +17,22 @@ class SubscriptionsController extends GetxController {
   final RxString searchQuery  = ''.obs;
   final RxBool   isLoading    = true.obs;
 
-  String? get vendorId => LocalStorageService.getVendor()?.id;
+  String? get vendorId => AuthService.to.uid;
   StreamSubscription? _sub;
 
   @override
   void onInit() {
     super.onInit();
-    allSubs.assignAll(LocalStorageService.getSubscriptions());
-    filteredSubs.assignAll(allSubs);
-    debounce(searchQuery, (_) => _applyFilter(),
-        time: const Duration(milliseconds: 300));
+    final cached = LocalStorageService.getSubscriptions();
+    allSubs.assignAll(cached);
+    if (cached.isNotEmpty) {
+      isLoading.value = false;
+    }
+    _applyFilter();
+    debounce(searchQuery, (_) => _applyFilter(), time: const Duration(milliseconds: 300));
     ever(statusFilter, (_) => _applyFilter());
   }
+
 
   @override
   void onReady() {
@@ -37,13 +41,15 @@ class SubscriptionsController extends GetxController {
   }
 
   void _initStream() {
-    if (vendorId == null) return;
-    final col = '${AppConstants.colVendors}/$vendorId/${AppConstants.colSubscriptions}';
-    _sub = _db.collection(col).snapshots().listen(
-          (snap) {
-        final subs = snap.docs.map((d) => SubscriptionModel.fromFirestore(d)).toList();
+    final uid = vendorId;
+    if (uid == null) {
+      isLoading.value = false;
+      return;
+    }
+    
+    _sub = _repo.watchSubscriptions(uid).listen(
+      (subs) {
         allSubs.assignAll(subs);
-        LocalStorageService.saveSubscriptions(subs);
         _applyFilter();
         isLoading.value = false;
       },
@@ -53,6 +59,7 @@ class SubscriptionsController extends GetxController {
       },
     );
   }
+
 
   void _applyFilter() {
     var result = allSubs.toList();
@@ -80,14 +87,13 @@ class SubscriptionsController extends GetxController {
 
   Future<void> togglePause(SubscriptionModel sub) async {
     if (vendorId == null) return;
-    final col = '${AppConstants.colVendors}/$vendorId/${AppConstants.colSubscriptions}';
-    final newStatus = sub.isActive
-        ? SubscriptionStatus.paused.name
-        : SubscriptionStatus.active.name;
-    await _db.collection(col).doc(sub.id).update({
-      'status': newStatus,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    
+    if (sub.isActive) {
+      await _repo.pauseSubscription(vendorId!, sub.id, null);
+    } else {
+      await _repo.resumeSubscription(vendorId!, sub.id);
+    }
+    
     Get.snackbar(
       sub.isActive ? '⏸ Paused' : '▶ Resumed',
       '${sub.customerName}\'s subscription ${sub.isActive ? 'paused' : 'resumed'}.',
@@ -97,12 +103,9 @@ class SubscriptionsController extends GetxController {
 
   Future<void> cancelSubscription(SubscriptionModel sub) async {
     if (vendorId == null) return;
-    final col = '${AppConstants.colVendors}/$vendorId/${AppConstants.colSubscriptions}';
-    await _db.collection(col).doc(sub.id).update({
-      'status': SubscriptionStatus.cancelled.name,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await _repo.cancelSubscription(vendorId!, sub.id);
   }
+
 
   // Computed
   int get activeCount   => allSubs.where((s) => s.isActive).length;

@@ -247,6 +247,19 @@ class GlobalPlanRepository {
     }
   }
 
+  Future<Result<void>> updateArea(String vendorId, DeliveryAreaModel area) async {
+    try {
+      await _db
+          .collection(_areasCol(vendorId))
+          .doc(area.id)
+          .update(area.toFirestore());
+      return const Result.success(null);
+    } catch (e) {
+      AppLogger.e('updateArea error', e);
+      return Result.failure(FirestoreFailure(e.toString()));
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // TIME SLOTS
   // ══════════════════════════════════════════════════════════════════════════
@@ -323,6 +336,19 @@ class GlobalPlanRepository {
       return const Result.success(null);
     } catch (e) {
       AppLogger.e('deleteTimeSlot error', e);
+      return Result.failure(FirestoreFailure(e.toString()));
+    }
+  }
+
+  Future<Result<void>> updateTimeSlot(String vendorId, TimeSlotModel slot) async {
+    try {
+      await _db
+          .collection(_slotsCol(vendorId))
+          .doc(slot.id)
+          .update(slot.toFirestore());
+      return const Result.success(null);
+    } catch (e) {
+      AppLogger.e('updateTimeSlot error', e);
       return Result.failure(FirestoreFailure(e.toString()));
     }
   }

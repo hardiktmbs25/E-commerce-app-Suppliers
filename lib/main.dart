@@ -15,7 +15,6 @@ import 'routes/app_pages.dart';
 import 'services/local_storage_service.dart';
 import 'core/localization/app_translations.dart';
 import 'data/models/hive/hive_adapters.dart';
-import 'services/localization_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -121,3 +120,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+
+
+

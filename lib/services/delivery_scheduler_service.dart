@@ -1,7 +1,6 @@
 // lib/services/delivery_scheduler_service.dart
 import 'dart:async';
 import 'package:get/get.dart';
-
 import '../core/utils/logger.dart';
 import '../data/models/delivery_model.dart';
 import '../data/models/subscription_model.dart';
@@ -15,10 +14,13 @@ class DeliverySchedulerService extends GetxService {
   final RxBool isGenerating = false.obs;
 
   Timer? _midnightTimer;
-  Timer? _slotWatcherTimer;
+  Timer? _engineTimer;
   int _tickCount = 0;
 
-  static String _lastGenKey(String vid) => 'scheduler_last_gen_$vid';
+  // Tracks which (date + slotStartTime) pairs have already been generated
+  // this app session, so the engine doesn't re-trigger within the same window.
+  // Key format: "yyyy-M-d_slotStartTime"  e.g. "2026-5-29_03:00 PM"
+  final Set<String> _generatedSlotKeys = {};
 
   // ─────────────────────────────────────────────────────────────
   // LIFECYCLE
@@ -28,171 +30,210 @@ class DeliverySchedulerService extends GetxService {
   void onReady() {
     super.onReady();
 
-    // 1. Run daily generation for today/tomorrow if needed
     final vendorId = LocalStorageService.vendorId;
     if (vendorId != null) {
-      runIfNeeded(vendorId);
+      // On startup: catch up any slots that already opened today
+      _catchUpPastSlotsForToday(vendorId);
     }
 
-    // 2. Schedule midnight generation runs
+    // Schedule the midnight job that pre-generates tomorrow
     _scheduleMidnightRun();
 
-    // 3. Start background slots watcher (15 mins interval)
-    _startSlotWatcher();
+    // Start 5-minute engine that fires deliveries at slot-start time
+    _startEngine();
   }
 
   @override
   void onClose() {
     _midnightTimer?.cancel();
-    _slotWatcherTimer?.cancel();
+    _engineTimer?.cancel();
     super.onClose();
   }
 
   // ─────────────────────────────────────────────────────────────
-  // MIDNIGHT GENERATION
+  // STARTUP CATCH-UP
+  // ─────────────────────────────────────────────────────────────
+
+  /// On app open, generate deliveries for any slots that have already started
+  /// today but whose deliveries don't exist in cache yet (e.g. app was closed
+  /// during an earlier slot window).
+  Future<void> _catchUpPastSlotsForToday(String vendorId) async {
+    AppLogger.i('Scheduler: Startup catch-up for past/open slots today...');
+    final now       = DateTime.now();
+    final timeSlots = LocalStorageService.getTimeSlots();
+
+    for (final slot in timeSlots) {
+      if (!slot.isActive) continue;
+      final startTime = slot.getStartDateTime(now);
+
+      // If the slot has already opened (or is open right now), generate
+      if (now.isAfter(startTime) || now.isAtSameMomentAs(startTime)) {
+        AppLogger.i('Scheduler: Catch-up → slot ${slot.label}');
+        await Get.find<DeliveryGenerationService>()
+            .generateForDateAndSlot(vendorId, now, slot.startTime);
+        _markSlotGenerated(now, slot.startTime);
+      }
+    }
+
+    // After catch-up, mark any past-window deliveries as missed
+    await _markExpiredPendingAsMissed(vendorId);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // MIDNIGHT JOB — pre-generates tomorrow's deliveries
   // ─────────────────────────────────────────────────────────────
 
   void _scheduleMidnightRun() {
     _midnightTimer?.cancel();
 
-    final now = DateTime.now();
+    final now      = DateTime.now();
     final midnight = DateTime(now.year, now.month, now.day + 1);
-    final diff = midnight.difference(now);
+    final diff     = midnight.difference(now);
 
-    AppLogger.i('Scheduler: next midnight run scheduled in ${diff.inMinutes} minutes');
+    AppLogger.i('Scheduler: Midnight run in ${diff.inMinutes} min');
 
     _midnightTimer = Timer(diff, () async {
       final vendorId = LocalStorageService.vendorId;
       if (vendorId != null) {
-        AppLogger.i('Scheduler: Midnight reached, generating deliveries...');
-        await Get.find<DeliveryGenerationService>().generateTodayAndTomorrow(vendorId);
-        _markGeneratedToday(vendorId);
+        AppLogger.i('Scheduler: Midnight — pre-generating tomorrow\'s deliveries');
+        // forceAll: false for today (engine handles remaining slots),
+        // forceAll: true for tomorrow (pre-generate the whole day)
+        await Get.find<DeliveryGenerationService>()
+            .generateTodayAndTomorrow(vendorId);
+
+        // Reset session tracking for the new day
+        _generatedSlotKeys.clear();
       }
-      _scheduleMidnightRun(); // reschedule for next day
+      _scheduleMidnightRun(); // reschedule for next midnight
     });
   }
 
   // ─────────────────────────────────────────────────────────────
-  // SLOT WATCHER & SYNC (Every 15 Minutes)
+  // ENGINE — fires every 5 minutes
   // ─────────────────────────────────────────────────────────────
 
-  void _startSlotWatcher() {
-    _slotWatcherTimer?.cancel();
+  void _startEngine() {
+    _engineTimer?.cancel();
     _tickCount = 0;
 
-    _slotWatcherTimer = Timer.periodic(
-      const Duration(minutes: 15),
-          (_) async {
-        final vendorId = LocalStorageService.vendorId;
-        if (vendorId == null) return;
+    _engineTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
+      final vendorId = LocalStorageService.vendorId;
+      if (vendorId == null) return;
 
-        AppLogger.i('Scheduler: Running 15-minute slot checks...');
+      AppLogger.i('Scheduler Engine: Tick ${_tickCount + 1}');
 
-        // 1. Check for starting time slots and generate deliveries
-        await _checkAndGenerateStartingSlots(vendorId);
+      // 1. Fire deliveries for slots whose window just opened
+      await _checkAndGenerateStartingSlots(vendorId);
 
-        // 2. Auto-missed rule transition
-        await _markExpiredPendingAsMissed(vendorId);
+      // 2. Mark deliveries missed once their slot window closes
+      await _markExpiredPendingAsMissed(vendorId);
 
-        _tickCount++;
+      _tickCount++;
 
-        // 3. Every 30 minutes (2 ticks): Sync offline queue
-        if (_tickCount % 2 == 0) {
-          AppLogger.i('Scheduler: Running 30-minute offline sync queue...');
-          await Get.find<SyncService>().syncPendingActions();
+      // 3. Sync offline queue every 30 min
+      if (_tickCount % 6 == 0) {
+        await Get.find<SyncService>().syncPendingActions();
+      }
+
+      // 4. Check overdue invoices every 60 min
+      if (_tickCount % 12 == 0) {
+        try {
+          await Get.find<BillingService>().markOverdueBills(vendorId);
+        } catch (e) {
+          AppLogger.w('Scheduler: markOverdueBills failed', e);
         }
-
-        // 4. Every 60 minutes (4 ticks): Check overdue invoices
-        if (_tickCount % 4 == 0) {
-          AppLogger.i('Scheduler: Checking overdue invoices...');
-          try {
-            await Get.find<BillingService>().markOverdueBills(vendorId);
-          } catch (e) {
-            AppLogger.w('Scheduler: markOverdueBills unavailable', e);
-          }
-        }
-      },
-    );
+      }
+    });
   }
 
+  /// Checks every active time slot. If `now` falls within the 6-minute trigger
+  /// window after slot start, generates deliveries for that slot — once per day.
   Future<void> _checkAndGenerateStartingSlots(String vendorId) async {
-    final vendor = LocalStorageService.getVendor();
-    if (vendor == null) return;
+    final now       = DateTime.now();
+    final timeSlots = LocalStorageService.getTimeSlots();
 
-    final now = DateTime.now();
-    for (final slot in vendor.timeSlots) {
-      final slotTime = _slotToDateTime(slot);
-      
-      // If now is within 15 minutes AFTER the slot time, ensure deliveries are generated
-      final diff = now.difference(slotTime).inMinutes;
-      if (diff >= 0 && diff < 16) {
-        AppLogger.i('Scheduler: Slot $slot just started. Generating deliveries for this slot.');
-        await Get.find<DeliveryGenerationService>().generateForDateAndSlot(vendorId, now, slot);
+    for (final slot in timeSlots) {
+      if (!slot.isActive) continue;
+
+      final startTime = slot.getStartDateTime(now);
+      final diff      = now.difference(startTime).inMinutes;
+
+      // 6-minute window covers the worst-case gap between engine ticks
+      if (diff >= 0 && diff < 6) {
+        final key = _slotKey(now, slot.startTime);
+        if (_generatedSlotKeys.contains(key)) continue; // already fired today
+
+        AppLogger.i('Scheduler: Slot ${slot.label} opened — generating deliveries');
+        await Get.find<DeliveryGenerationService>()
+            .generateForDateAndSlot(vendorId, now, slot.startTime);
+        _markSlotGenerated(now, slot.startTime);
       }
     }
   }
 
-  // ... (existing code)
+  Future<void> _markExpiredPendingAsMissed(String vendorId) async {
+    final now             = DateTime.now();
+    final todayDeliveries = LocalStorageService.getTodayDeliveries();
+    final deliveryRepo    = Get.find<DeliveryRepository>();
+    final timeSlots       = LocalStorageService.getTimeSlots();
 
+    for (final delivery in todayDeliveries) {
+      if (delivery.status != DeliveryStatus.pending) continue;
+
+      final slotModel = timeSlots
+          .firstWhereOrNull((s) => s.startTime == delivery.deliverySlot);
+
+      final missedTime = slotModel != null
+          ? slotModel.getEndDateTime(delivery.scheduledDate)
+          : delivery.scheduledDate.add(const Duration(hours: 2));
+
+      if (now.isAfter(missedTime)) {
+        AppLogger.i(
+          'Scheduler: ${delivery.customerName} slot closed at '
+              '${missedTime.toIso8601String()} → MISSED',
+        );
+        await deliveryRepo.updateDeliveryStatus(
+            vendorId, delivery, DeliveryStatus.missed);
+      }
+    }
+  }
 
   // ─────────────────────────────────────────────────────────────
   // PUBLIC API
   // ─────────────────────────────────────────────────────────────
 
-  /// Runs today's and tomorrow's generation if it hasn't been performed today yet.
+  /// Called on screen open to catch up any slots that opened since last tick.
+  /// Safe to call repeatedly — generation is idempotent via deterministic IDs.
   Future<void> runIfNeeded(String vendorId) async {
-    final today = _dateKey(DateTime.now());
-    final lastGen = LocalStorageService.getSetting<String>(_lastGenKey(vendorId));
-
-    if (lastGen == today) {
-      AppLogger.i('Scheduler: Deliveries for today already generated.');
-      return;
-    }
-
     isGenerating.value = true;
     try {
-      AppLogger.i('Scheduler: Initializing daily generation for today & tomorrow...');
-      await Get.find<DeliveryGenerationService>().generateTodayAndTomorrow(vendorId);
-      _markGeneratedToday(vendorId);
+      await _catchUpPastSlotsForToday(vendorId);
     } catch (e) {
-      AppLogger.e('Scheduler: runIfNeeded generation failed', e);
+      AppLogger.e('Scheduler: runIfNeeded failed', e);
     } finally {
       isGenerating.value = false;
     }
   }
 
-  /// Triggers a generation refresh when a new subscription is added.
-  /// Duplicate protection will ensure that only the new deliveries are created.
+  /// Called after a new subscription is created.
+  /// Only generates for slots whose window is currently open right now.
   Future<void> generateForNewSubscription(
       String vendorId,
       SubscriptionModel sub,
       String customerAddress,
       ) async {
-    AppLogger.i('Scheduler: New subscription added, refreshing deliveries...');
-    await Get.find<DeliveryGenerationService>().generateTodayAndTomorrow(vendorId);
-  }
+    final now       = DateTime.now();
+    final timeSlots = LocalStorageService.getTimeSlots();
 
-  // ─────────────────────────────────────────────────────────────
-  // AUTO-MISSED RULE LOGIC (slot + 2 hours)
-  // ─────────────────────────────────────────────────────────────
+    for (final slot in timeSlots) {
+      if (!slot.isActive) continue;
+      final start = slot.getStartDateTime(now);
+      final end   = slot.getEndDateTime(now);
 
-  Future<void> _markExpiredPendingAsMissed(String vendorId) async {
-    final now = DateTime.now();
-    final todayDeliveries = LocalStorageService.getTodayDeliveries();
-    final deliveryRepo = Get.find<DeliveryRepository>();
-
-    for (final delivery in todayDeliveries) {
-      if (delivery.status != DeliveryStatus.pending) {
-        continue;
-      }
-
-      final slotTime = _slotToDateTime(delivery.deliverySlot);
-      final missedTime = slotTime.add(const Duration(hours: 2));
-
-      // If the slot has elapsed by more than 2 hours, transition to missed
-      if (now.isAfter(missedTime)) {
-        AppLogger.i('Scheduler: Delivery ${delivery.id} for ${delivery.customerName} has elapsed. Marking missed.');
-        await deliveryRepo.updateDeliveryStatus(vendorId, delivery, DeliveryStatus.missed);
+      if (now.isAfter(start) && now.isBefore(end)) {
+        AppLogger.i('Scheduler: New subscription — open slot ${slot.label}');
+        await Get.find<DeliveryGenerationService>()
+            .generateForDateAndSlot(vendorId, now, slot.startTime);
       }
     }
   }
@@ -201,35 +242,9 @@ class DeliverySchedulerService extends GetxService {
   // HELPERS
   // ─────────────────────────────────────────────────────────────
 
-  DateTime _slotToDateTime(String slot) {
-    final now = DateTime.now();
-    final cleaned = slot.trim().toUpperCase();
-    final parts = cleaned.split(' ');
+  String _slotKey(DateTime date, String startTime) =>
+      '${date.year}-${date.month}-${date.day}_$startTime';
 
-    if (parts.length != 2) {
-      return DateTime(now.year, now.month, now.day, 7, 0);
-    }
-
-    final time = parts[0];
-    final meridian = parts[1];
-    final timeParts = time.split(':');
-
-    int hour = int.tryParse(timeParts[0]) ?? 7;
-    int minute = (timeParts.length > 1) ? (int.tryParse(timeParts[1]) ?? 0) : 0;
-
-    if (meridian == 'PM' && hour != 12) {
-      hour += 12;
-    }
-    if (meridian == 'AM' && hour == 12) {
-      hour = 0;
-    }
-
-    return DateTime(now.year, now.month, now.day, hour, minute);
-  }
-
-  void _markGeneratedToday(String vendorId) {
-    LocalStorageService.saveSetting(_lastGenKey(vendorId), _dateKey(DateTime.now()));
-  }
-
-  String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
+  void _markSlotGenerated(DateTime date, String startTime) =>
+      _generatedSlotKeys.add(_slotKey(date, startTime));
 }

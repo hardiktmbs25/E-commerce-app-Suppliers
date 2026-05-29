@@ -30,7 +30,7 @@ class InvoiceModelAdapter extends TypeAdapter<InvoiceModel> {
           ? []
           : (fields[9] as List?)
               ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
-              ?.toList(),
+              .toList(),
       subtotal: fields[10] == null ? 0.0 : fields[10] as double,
       totalDiscount: fields[11] == null ? 0.0 : fields[11] as double,
       extraCharges: fields[12] == null ? 0.0 : fields[12] as double,

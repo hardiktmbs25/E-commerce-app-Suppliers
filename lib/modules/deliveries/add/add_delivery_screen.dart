@@ -113,10 +113,10 @@ class _CustomerPicker extends StatelessWidget {
         onChanged: ctrl.onCustomerSearch,
         enabled: ctrl.selectedCustomer.value == null,
         decoration: InputDecoration(
-          hintText: 'Search by name or address...',
+          hintText: 'Type name for custom or search...',
           hintStyle: const TextStyle(fontFamily: 'Poppins', fontSize: 13,
               color: AppColors.textHint),
-          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+          prefixIcon: const Icon(Icons.person_rounded, size: 20),
           filled: true,
           fillColor: AppColors.surface,
           contentPadding: const EdgeInsets.symmetric(vertical: 13),
@@ -129,11 +129,49 @@ class _CustomerPicker extends StatelessWidget {
           disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.border)),
         ),
-        style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
+        style: const TextStyle(fontFamily: 'Poppins', fontSize: 13, fontWeight: FontWeight.w600),
       ),
+
+      // Custom customer fields
+      if (ctrl.selectedCustomer.value == null && ctrl.customerSearchCtrl.text.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(children: [
+             TextField(
+               controller: ctrl.customerAddressCtrl,
+               decoration: InputDecoration(
+                 hintText: 'Delivery Address (optional)',
+                 prefixIcon: const Icon(Icons.location_on_rounded, size: 18),
+                 filled: true, fillColor: AppColors.surface,
+                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+               ),
+               style: const TextStyle(fontSize: 12),
+             ),
+             const SizedBox(height: 8),
+             TextField(
+               controller: ctrl.customerPhoneCtrl,
+               keyboardType: TextInputType.phone,
+               decoration: InputDecoration(
+                 hintText: 'Phone (optional)',
+                 prefixIcon: const Icon(Icons.phone_rounded, size: 18),
+                 filled: true, fillColor: AppColors.surface,
+                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+               ),
+               style: const TextStyle(fontSize: 12),
+             ),
+             Row(children: [
+               Obx(() => Checkbox(
+                 value: ctrl.saveAsCustomer.value,
+                 onChanged: (v) => ctrl.saveAsCustomer.value = v ?? false,
+               )),
+               const Text('Save as permanent customer', style: TextStyle(fontSize: 11)),
+             ]),
+          ]),
+        ),
 
       // Suggestions dropdown
       if (ctrl.customerSuggestions.isNotEmpty)
+
         Container(
           margin: const EdgeInsets.only(top: 4),
           decoration: BoxDecoration(

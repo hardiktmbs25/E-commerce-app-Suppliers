@@ -59,9 +59,12 @@ class AddSubscriptionController extends GetxController {
 
   final selectedDropdownPlan = Rxn<PlanModel>();
 
+  final Rxn<SubscriptionModel> editingSub = Rxn<SubscriptionModel>();
+
   // ─────────────────────────────────────────────────────────────
   // Derived
   // ─────────────────────────────────────────────────────────────
+
 
   String? get vendorId =>
       LocalStorageService.getVendor()?.id;
@@ -104,8 +107,40 @@ class AddSubscriptionController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    
+    if (Get.arguments is SubscriptionModel) {
+      editingSub.value = Get.arguments;
+      _prefillEditMode();
+    }
+    
     loadPlansAndSlots();
   }
+
+  void _prefillEditMode() {
+    final sub = editingSub.value!;
+    notesCtrl.text = sub.notes ?? '';
+    startDate.value = sub.startDate;
+    selectedCustomer.value = LocalStorageService.getCustomer(sub.customerId);
+    
+    // Create a pseudo-plan based on current subscription values for display in basket
+    // This allows the user to see what they have and optionally remove/replace it.
+    final mockPlan = PlanModel(
+      id: 'current',
+      vendorId: sub.vendorId,
+      name: 'Current Config',
+      serviceType: sub.serviceTypeStr,
+      frequencyStr: sub.frequencyStr,
+      quantity: sub.quantity,
+      unit: sub.unit,
+      pricePerUnit: sub.pricePerUnit,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    
+    selectedPlans.add(SelectedPlanItem(id: 'current', plan: mockPlan));
+  }
+
+
 
   // ─────────────────────────────────────────────────────────────
   // Load Plans & Slots
@@ -166,15 +201,26 @@ class AddSubscriptionController extends GetxController {
   // ─────────────────────────────────────────────────────────────
 
   void addPlan(PlanModel plan) {
-    selectedPlans.add(
-      SelectedPlanItem(
-        id: const Uuid().v4(),
-        plan: plan,
-      ),
-    );
+    if (editingSub.value != null) {
+      // In edit mode, replace the single item
+      selectedPlans.assignAll([
+        SelectedPlanItem(
+          id: const Uuid().v4(),
+          plan: plan,
+        ),
+      ]);
+    } else {
+      selectedPlans.add(
+        SelectedPlanItem(
+          id: const Uuid().v4(),
+          plan: plan,
+        ),
+      );
+    }
 
     selectedDropdownPlan.value = null;
   }
+
 
   void removePlan(String instanceId) {
     selectedPlans.removeWhere(
@@ -264,78 +310,113 @@ class AddSubscriptionController extends GetxController {
     final customer = selectedCustomer.value!;
 
     try {
-      int successCount = 0;
-
-      SubscriptionModel? lastSavedSub;
-
-      for (final item in selectedPlans) {
+      if (editingSub.value != null) {
+        // ── UPDATE MODE ──────────────────────────────────────────────
+        final item = selectedPlans.first;
         final plan = item.plan;
-
+        
         final resolvedSlots = plan.deliverySlotIds
             .map((slotId) {
-          final slot = timeSlots.firstWhereOrNull(
-                (s) => s.id == slotId,
+          final slot = timeSlots.firstWhereOrNull((s) => s.id == slotId);
+          return slot?.label ?? '07:00 AM';
+        }).toList();
+
+        if (resolvedSlots.isEmpty) resolvedSlots.add('07:00 AM');
+
+        final updatedSub = editingSub.value!.copyWith(
+          serviceTypeStr: plan.serviceType,
+          frequencyStr: plan.frequencyStr,
+          quantity: plan.quantity,
+          pricePerUnit: plan.pricePerUnit,
+          pricePerDelivery: plan.pricePerDelivery,
+          deliverySlots: resolvedSlots,
+          notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+          autoResume: true, // Reset autoResume on edit
+        );
+
+        final result = await _repo.updateSubscription(vendorId!, updatedSub);
+        
+        result.fold(
+          (failure) => Get.snackbar('Error', failure.message, snackPosition: SnackPosition.TOP),
+          (_) {
+            Get.back(result: updatedSub);
+            Get.snackbar('✅ Updated', 'Subscription updated successfully.', snackPosition: SnackPosition.TOP);
+          }
+        );
+      } else {
+        // ── CREATE MODE ──────────────────────────────────────────────
+        int successCount = 0;
+        SubscriptionModel? lastSavedSub;
+
+        for (final item in selectedPlans) {
+          final plan = item.plan;
+
+          final resolvedSlots = plan.deliverySlotIds
+              .map((slotId) {
+            final slot = timeSlots.firstWhereOrNull(
+                  (s) => s.id == slotId,
+            );
+
+            return slot?.label ?? '07:00 AM';
+          })
+              .toList();
+
+          if (resolvedSlots.isEmpty) {
+            resolvedSlots.add('07:00 AM');
+          }
+
+          final result = await _repo.createSubscription(
+            vendorId: vendorId!,
+            customerId: customer.id,
+            customerName: customer.name,
+            serviceType: plan.serviceType,
+            frequency: plan.frequencyStr,
+            quantity: plan.quantity,
+            unit: plan.unit,
+            pricePerUnit: plan.pricePerUnit,
+            deliverySlot: resolvedSlots.first,
+            deliverySlots: resolvedSlots,
+            notes: notesCtrl.text.trim().isEmpty
+                ? null
+                : notesCtrl.text.trim(),
+            startDate: startDate.value,
           );
 
-          return slot?.label ?? '07:00 AM';
-        })
-            .toList();
+          await result.fold(
+                (failure) async {
+              Get.snackbar(
+                '❌ Error adding "${plan.name}"',
+                failure.message,
+                snackPosition: SnackPosition.TOP,
+                backgroundColor: AppColors.error,
+                colorText: Colors.white,
+              );
+            },
+                (savedSub) async {
+              successCount++;
+              lastSavedSub = savedSub;
 
-        if (resolvedSlots.isEmpty) {
-          resolvedSlots.add('07:00 AM');
+              // Trigger immediate generation for today/tomorrow if applicable
+              await Get.find<DeliverySchedulerService>().generateForNewSubscription(
+                vendorId!,
+                savedSub,
+                customer.address,
+              );
+            },
+          );
         }
 
-        final result = await _repo.createSubscription(
-          vendorId: vendorId!,
-          customerId: customer.id,
-          customerName: customer.name,
-          serviceType: plan.serviceType,
-          frequency: plan.frequencyStr,
-          quantity: plan.quantity,
-          unit: plan.unit,
-          pricePerUnit: plan.pricePerUnit,
-          deliverySlot: resolvedSlots.first,
-          deliverySlots: resolvedSlots,
-          notes: notesCtrl.text.trim().isEmpty
-              ? null
-              : notesCtrl.text.trim(),
-          startDate: startDate.value,
-        );
+        if (successCount == selectedPlans.length) {
+          Get.back(result: lastSavedSub);
 
-        await result.fold(
-              (failure) async {
-            Get.snackbar(
-              '❌ Error adding "${plan.name}"',
-              failure.message,
-              snackPosition: SnackPosition.TOP,
-              backgroundColor: AppColors.error,
-              colorText: Colors.white,
-            );
-          },
-              (savedSub) async {
-            successCount++;
-            lastSavedSub = savedSub;
-
-            // Trigger immediate generation for today/tomorrow if applicable
-            await Get.find<DeliverySchedulerService>().generateForNewSubscription(
-              vendorId!,
-              savedSub,
-              customer.address,
-            );
-          },
-        );
-      }
-
-      if (successCount == selectedPlans.length) {
-        Get.back(result: lastSavedSub);
-
-        Get.snackbar(
-          '✅ Subscription Added',
-          '$successCount subscription(s) created successfully.',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
+          Get.snackbar(
+            '✅ Subscription Added',
+            '$successCount subscription(s) created successfully.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
+        }
       }
     } catch (e) {
       Get.snackbar(
@@ -349,6 +430,7 @@ class AddSubscriptionController extends GetxController {
       isLoading.value = false;
     }
   }
+
 
   // ─────────────────────────────────────────────────────────────
   // Cleanup

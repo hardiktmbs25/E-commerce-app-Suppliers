@@ -27,10 +27,23 @@ import '../../../data/models/time_slot_model.dart';
 import '../../../data/repositories/global_plan_repository.dart';
 import '../../../services/local_storage_service.dart';
 
-class GlobalPlansController extends GetxController {
+class GlobalPlansController extends GetxController with GetSingleTickerProviderStateMixin {
+  late TabController tabController;
+
   @override
   void onInit() {
     super.onInit();
+
+    tabController = TabController(length: 3, vsync: this);
+
+    if (Get.arguments is int) {
+      tabController.index = Get.arguments;
+      tabIndex.value = Get.arguments;
+    }
+
+    tabController.addListener(() {
+      tabIndex.value = tabController.index;
+    });
 
     /// quantity listener
     planQtyCtrl.addListener(() {
@@ -64,7 +77,10 @@ class GlobalPlansController extends GetxController {
   final RxBool areaSaving = false.obs;
   final RxBool slotSaving = false.obs;
 
+  final Rxn<PlanModel> editingPlan = Rxn<PlanModel>();
+
   // ── Vendor ────────────────────────────────────────────────────────────────
+
   String? get vendorId => LocalStorageService.getVendor()?.id;
 
   StreamSubscription? _plansSub;
@@ -243,6 +259,19 @@ class GlobalPlansController extends GetxController {
     }
   }
 
+  void prefillPlan(PlanModel plan) {
+    editingPlan.value = plan;
+    planNameCtrl.text = plan.name;
+    planDescCtrl.text = plan.description;
+    planQtyCtrl.text = plan.quantity.toString();
+    planPriceCtrl.text = plan.pricePerUnit.toString();
+    selectedService.value = plan.serviceType;
+    selectedFrequency.value = plan.frequencyStr;
+    selectedUnit.value = plan.unit;
+    selectedSlotIds.assignAll(plan.deliverySlotIds);
+    selectedAreaIds.assignAll(plan.deliveryAreaIds);
+  }
+
   Future<void> savePlan() async {
     if (!(planFormKey.currentState?.validate() ?? false)) return;
     if (vendorId == null) return;
@@ -259,37 +288,66 @@ class GlobalPlansController extends GetxController {
 
     planSaving.value = true;
 
-    final result = await _repo.createPlan(
-      vendorId:        vendorId!,
-      name:            planNameCtrl.text.trim(),
-      serviceType:     selectedService.value,
-      frequency:       selectedFrequency.value,
-      quantity:        double.tryParse(planQtyCtrl.text) ?? 1,
-      unit:            selectedUnit.value,
-      pricePerUnit:    double.tryParse(planPriceCtrl.text) ?? 0,
-      deliverySlotIds: List<String>.from(selectedSlotIds),
-      deliveryAreaIds: List<String>.from(selectedAreaIds),
-      description:     planDescCtrl.text.trim(),
-    );
+    if (editingPlan.value != null) {
+      // UPDATE existing plan
+      final updated = editingPlan.value!.copyWith(
+        name: planNameCtrl.text.trim(),
+        serviceType: selectedService.value,
+        frequencyStr: selectedFrequency.value,
+        quantity: double.tryParse(planQtyCtrl.text) ?? 1,
+        unit: selectedUnit.value,
+        pricePerUnit: double.tryParse(planPriceCtrl.text) ?? 0,
+        deliverySlotIds: List<String>.from(selectedSlotIds),
+        deliveryAreaIds: List<String>.from(selectedAreaIds),
+        description: planDescCtrl.text.trim(),
+      );
 
-    planSaving.value = false;
+      final result = await _repo.updatePlan(vendorId!, updated);
+      planSaving.value = false;
 
-    result.fold(
-          (failure) => Get.snackbar(
-        'Error', failure.message,
-        snackPosition: SnackPosition.BOTTOM,
-      ),
-          (_) {
-        final savedName = planNameCtrl.text.trim();
-        _clearPlanForm();
-        Get.back();
-        Get.snackbar(
-          '✅ Plan Created', '"$savedName" added successfully.',
-          snackPosition: SnackPosition.TOP,
-        );
-      },
-    );
+      result.fold(
+        (failure) => Get.snackbar('Error', failure.message, snackPosition: SnackPosition.BOTTOM),
+        (_) {
+          _clearPlanForm();
+          Get.back();
+          Get.snackbar('✅ Plan Updated', 'Plan updated successfully.', snackPosition: SnackPosition.TOP);
+        },
+      );
+    } else {
+      // CREATE new plan
+      final result = await _repo.createPlan(
+        vendorId:        vendorId!,
+        name:            planNameCtrl.text.trim(),
+        serviceType:     selectedService.value,
+        frequency:       selectedFrequency.value,
+        quantity:        double.tryParse(planQtyCtrl.text) ?? 1,
+        unit:            selectedUnit.value,
+        pricePerUnit:    double.tryParse(planPriceCtrl.text) ?? 0,
+        deliverySlotIds: List<String>.from(selectedSlotIds),
+        deliveryAreaIds: List<String>.from(selectedAreaIds),
+        description:     planDescCtrl.text.trim(),
+      );
+
+      planSaving.value = false;
+
+      result.fold(
+            (failure) => Get.snackbar(
+          'Error', failure.message,
+          snackPosition: SnackPosition.BOTTOM,
+        ),
+            (_) {
+          final savedName = planNameCtrl.text.trim();
+          _clearPlanForm();
+          Get.back();
+          Get.snackbar(
+            '✅ Plan Created', '"$savedName" added successfully.',
+            snackPosition: SnackPosition.TOP,
+          );
+        },
+      );
+    }
   }
+
 
   Future<void> togglePlanActive(PlanModel plan) async {
     if (vendorId == null) return;
@@ -308,8 +366,10 @@ class GlobalPlansController extends GetxController {
   }
 
   void _clearPlanForm() {
+    editingPlan.value = null;
     planNameCtrl.clear();
     planDescCtrl.clear();
+
     planQtyCtrl.text = '1';
     planPriceCtrl.clear();
     selectedService.value   = vendorService;

@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/customer_model.dart';
-import '../../../data/repositories/customer_repository.dart';
 import '../../../data/repositories/delivery_repository.dart';
 import '../../../services/local_storage_service.dart';
 
 class ExtraOrderController extends GetxController {
   final DeliveryRepository _deliveryRepo = Get.find<DeliveryRepository>();
-  final CustomerRepository _customerRepo = Get.find<CustomerRepository>();
 
   final customerSearchCtrl = TextEditingController();
   final quantityCtrl       = TextEditingController(text: '1');

@@ -33,18 +33,15 @@ class VendorModelAdapter extends TypeAdapter<VendorModel> {
       totalRevenue: fields[13] as double,
       totalCustomers: fields[14] as int,
       settings: (fields[15] as Map).cast<String, dynamic>(),
-      areas: fields[16] == null ? [] : (fields[16] as List).cast<String>(),
-      timeSlots: fields[17] == null
-          ? ['07:00 AM']
-          : (fields[17] as List).cast<String>(),
-      planName: fields[18] == null ? 'Basic' : fields[18] as String,
+      planName: fields[16] == null ? 'Basic' : fields[16] as String,
+      isOnboardingComplete: fields[17] == null ? false : fields[17] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, VendorModel obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -78,11 +75,9 @@ class VendorModelAdapter extends TypeAdapter<VendorModel> {
       ..writeByte(15)
       ..write(obj.settings)
       ..writeByte(16)
-      ..write(obj.areas)
+      ..write(obj.planName)
       ..writeByte(17)
-      ..write(obj.timeSlots)
-      ..writeByte(18)
-      ..write(obj.planName);
+      ..write(obj.isOnboardingComplete);
   }
 
   @override

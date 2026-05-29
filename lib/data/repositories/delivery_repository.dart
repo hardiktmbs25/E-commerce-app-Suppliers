@@ -60,6 +60,24 @@ class DeliveryRepository {
   List<DeliveryModel> getLocalTodayDeliveries() =>
       LocalStorageService.getTodayDeliveries();
 
+  // ── Pending deliveries stream ─────────────────────────────────────────────
+  Stream<List<DeliveryModel>> watchPendingDeliveries(String vendorId) {
+    return _db
+        .collection(_col(vendorId))
+        .where('status', isEqualTo: DeliveryStatus.pending.name)
+        .snapshots()
+        .map((snap) {
+      final deliveries = snap.docs.map((d) => DeliveryModel.fromFirestore(d)).toList();
+      LocalStorageService.saveDeliveries(deliveries);
+      return deliveries;
+    }).handleError((e) {
+      AppLogger.e('watchPendingDeliveries error', e);
+      return LocalStorageService.getDeliveries()
+          .where((d) => d.status == DeliveryStatus.pending)
+          .toList();
+    });
+  }
+
   // ── Mark delivery status ──────────────────────────────────────────────────
   Future<Result<void>> updateDeliveryStatus(
       String vendorId,

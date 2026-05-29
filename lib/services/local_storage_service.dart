@@ -3,13 +3,16 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../core/constants/app_constants.dart';
 import '../core/utils/logger.dart';
+import '../data/models/delivery_area_model.dart';
 import '../data/models/invoice_model.dart';
 import '../data/models/customer_model.dart';
 import '../data/models/delivery_model.dart';
 import '../data/models/ledger_entry_model.dart';
 import '../data/models/payment_model.dart';
+import '../data/models/plan_model.dart';
 import '../data/models/subscription_model.dart';
 import '../data/models/sync_action_model.dart';
+import '../data/models/time_slot_model.dart';
 import '../data/models/vendor_model.dart';
 
 class LocalStorageService {
@@ -23,8 +26,37 @@ class LocalStorageService {
   static late Box<InvoiceModel>     _invoicesBox;
   static late Box<PaymentModel>     _paymentsBox;
   static late Box<LedgerEntryModel> _ledgerBox;
+  static late Box<TimeSlotModel>    _timeSlotsBox;
+  static late Box<DeliveryAreaModel> _areasBox;
+  static late Box<PlanModel>         _plansBox;
 
   static Future<void> init() async {
+    try {
+      await _initBoxes();
+      AppLogger.i('LocalStorageService initialized');
+    } catch (e) {
+      AppLogger.e('Hive initialization failed: $e');
+      // Handle schema mismatch/corruption in caches
+      if (e is TypeError || e.toString().contains('type cast')) {
+        AppLogger.w('Schema mismatch detected, clearing caches...');
+        try {
+          await Hive.deleteBoxFromDisk(AppConstants.boxDeliveries);
+          await Hive.deleteBoxFromDisk(AppConstants.boxCustomers);
+          await Hive.deleteBoxFromDisk(AppConstants.boxSubscriptions);
+          // Retry initialization
+          await _initBoxes();
+          AppLogger.i('LocalStorageService re-initialized after clearing cache');
+        } catch (retryError) {
+          AppLogger.e('Retry initialization failed: $retryError');
+          rethrow;
+        }
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  static Future<void> _initBoxes() async {
     _settings         = await Hive.openBox(AppConstants.boxSettings);
     _vendorBox        = await Hive.openBox<VendorModel>(AppConstants.boxVendor);
     _customersBox     = await Hive.openBox<CustomerModel>(AppConstants.boxCustomers);
@@ -34,8 +66,12 @@ class LocalStorageService {
     _invoicesBox      = await Hive.openBox<InvoiceModel>(AppConstants.boxBills);
     _paymentsBox      = await Hive.openBox<PaymentModel>(AppConstants.boxPayments);
     _ledgerBox        = await Hive.openBox<LedgerEntryModel>(AppConstants.boxLedger);
-    AppLogger.i('LocalStorageService initialized');
+    _timeSlotsBox     = await Hive.openBox<TimeSlotModel>(AppConstants.boxTimeSlots);
+    _areasBox         = await Hive.openBox<DeliveryAreaModel>(AppConstants.boxAreas);
+    _plansBox         = await Hive.openBox<PlanModel>(AppConstants.boxPlans);
   }
+
+
 
   // ── Settings ─────────────────────────────────────────────────────────
   static T? getSetting<T>(String key, {T? defaultValue}) =>
@@ -83,6 +119,29 @@ class LocalStorageService {
   static Future<void> saveSubscriptions(List<SubscriptionModel> ss) async =>
       _subscriptionsBox.putAll({for (final s in ss) s.id: s});
   static Future<void> clearSubscriptions() => _subscriptionsBox.clear();
+
+  // ── Time Slots ────────────────────────────────────────────────────────
+  static List<TimeSlotModel> getTimeSlots() => _timeSlotsBox.values.toList();
+  static Future<void> saveTimeSlot(TimeSlotModel s) => _timeSlotsBox.put(s.id, s);
+  static Future<void> saveTimeSlots(List<TimeSlotModel> ss) async =>
+      _timeSlotsBox.putAll({for (final s in ss) s.id: s});
+  static Future<void> clearTimeSlots() => _timeSlotsBox.clear();
+
+  // ── Delivery Areas ────────────────────────────────────────────────────
+  static List<DeliveryAreaModel> getAreas() => _areasBox.values.toList();
+  static Future<void> saveArea(DeliveryAreaModel a) => _areasBox.put(a.id, a);
+  static Future<void> saveAreas(List<DeliveryAreaModel> as) async =>
+      _areasBox.putAll({for (final a in as) a.id: a});
+  static Future<void> clearAreas() => _areasBox.clear();
+
+  // ── Plans ─────────────────────────────────────────────────────────────
+  static List<PlanModel> getPlans() => _plansBox.values.toList();
+  static Future<void> savePlan(PlanModel p) => _plansBox.put(p.id, p);
+  static Future<void> savePlans(List<PlanModel> ps) async =>
+      _plansBox.putAll({for (final p in ps) p.id: p});
+  static Future<void> clearPlans() => _plansBox.clear();
+
+
 
   // ── Invoices ──────────────────────────────────────────────────────────
   static List<InvoiceModel> getBills() => _invoicesBox.values.toList();

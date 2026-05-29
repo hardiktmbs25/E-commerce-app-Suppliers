@@ -195,7 +195,7 @@ class ProfileScreen extends GetView<ProfileController> {
                           color: AppColors.textHint,
                         ),
                       ),
-                      
+
                       const SizedBox(height: 14),
 
                       // Plan Name
@@ -264,7 +264,19 @@ class ProfileScreen extends GetView<ProfileController> {
                     ],
                   ),
                 ),
-
+                const SizedBox(height: 12),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Add Subscriptions',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
                 // ── Menu Items ─────────────────────────────────────────
                 const SizedBox(height: 12),
                 _MenuTile(
@@ -289,31 +301,24 @@ class ProfileScreen extends GetView<ProfileController> {
                 ),
                 const SizedBox(height: 12),
 
-                // Areas
-                _ExpandableConfigSection(
-                  title: 'Service Areas',
-                  items: controller.areasList,
-                  isEditing: isEditing,
-                  addCtrl: controller.areaCtrl,
-                  onAdd: controller.addArea,
-                  onRemove: controller.removeArea,
-                  hint: 'Add area (e.g. Andheri West)',
+                _MenuTile(
+                  icon: Icons.assignment_outlined,
+                  label: 'Plans',
+                  onTap: () => Get.toNamed(Routes.globalPlans, arguments: 0),
+                ),
+
+                _MenuTile(
                   icon: Icons.map_outlined,
+                  label: 'Service Areas',
+                  onTap: () => Get.toNamed(Routes.globalPlans, arguments: 1),
                 ),
 
-                const SizedBox(height: 12),
-
-                // Time Slots
-                _ExpandableConfigSection(
-                  title: 'Time Slots',
-                  items: controller.timeSlotsList,
-                  isEditing: isEditing,
-                  addCtrl: controller.timeSlotCtrl,
-                  onAdd: controller.addTimeSlot,
-                  onRemove: controller.removeTimeSlot,
-                  hint: 'Add slot (e.g. 06:00 AM)',
+                _MenuTile(
                   icon: Icons.access_time_rounded,
+                  label: 'Time Slots',
+                  onTap: () => Get.toNamed(Routes.globalPlans, arguments: 2),
                 ),
+
 
                 const SizedBox(height: 24),
 
@@ -380,103 +385,6 @@ class ProfileScreen extends GetView<ProfileController> {
   }
 }
 
-class _ExpandableConfigSection extends StatelessWidget {
-  final String title;
-  final RxList<String> items;
-  final bool isEditing;
-  final TextEditingController addCtrl;
-  final VoidCallback onAdd;
-  final Function(int) onRemove;
-  final String hint;
-  final IconData icon;
-
-  const _ExpandableConfigSection({
-    required this.title,
-    required this.items,
-    required this.isEditing,
-    required this.addCtrl,
-    required this.onAdd,
-    required this.onRemove,
-    required this.hint,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 0.8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: AppColors.primary),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Obx(() => Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: List.generate(items.length, (index) {
-              return Chip(
-                label: Text(
-                  items[index],
-                  style: const TextStyle(fontSize: 12, fontFamily: 'Poppins'),
-                ),
-                backgroundColor: AppColors.background,
-                deleteIcon: isEditing ? const Icon(Icons.close, size: 14) : null,
-                onDeleted: isEditing ? () => onRemove(index) : null,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: AppColors.border),
-                ),
-              );
-            }),
-          )),
-          if (isEditing) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    label: '',
-                    hint: hint,
-                    controller: addCtrl,
-                    textInputAction: TextInputAction.next,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: onAdd,
-                  icon: const Icon(Icons.add, size: 20),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
 
 class _MenuTile extends StatelessWidget {
   final IconData icon;

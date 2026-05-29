@@ -1,18 +1,23 @@
 // lib/data/models/delivery_area_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
+import '../../core/constants/app_constants.dart';
+
+part 'delivery_area_model.g.dart';
 
 /// A delivery area defined by the vendor.
 /// Stored at: vendors/{vendorId}/areas/{areaId}
-class DeliveryAreaModel {
-  final String id;
-  final String vendorId;
-  final String name;         // e.g. "Andheri West", "Bandra East"
-  final String? pincode;
-  final String? city;
-  final bool isActive;
-  final DateTime createdAt;
+@HiveType(typeId: AppConstants.tidDeliveryAreaModel)
+class DeliveryAreaModel extends HiveObject {
+  @HiveField(0) final String id;
+  @HiveField(1) final String vendorId;
+  @HiveField(2) final String name;         // e.g. "Andheri West", "Bandra East"
+  @HiveField(3) final String? pincode;
+  @HiveField(4) final String? city;
+  @HiveField(5) final bool isActive;
+  @HiveField(6) final DateTime createdAt;
 
-  const DeliveryAreaModel({
+  DeliveryAreaModel({
     required this.id,
     required this.vendorId,
     required this.name,
@@ -21,6 +26,7 @@ class DeliveryAreaModel {
     this.isActive = true,
     required this.createdAt,
   });
+
 
   factory DeliveryAreaModel.fromFirestore(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
