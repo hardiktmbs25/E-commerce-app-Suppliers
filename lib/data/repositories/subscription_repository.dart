@@ -1,0 +1,239 @@
+// lib/data/repositories/subscription_repository.dart
+//
+// FIXES APPLIED:
+//  1. VENDOR FILTERING — fetchCustomerSubscriptions now includes a
+//     vendorId equality filter. Previously, if two vendors shared the same
+//     customerId (unlikely but possible with custom IDs), one vendor could
+//     see the other's subscriptions.
+//
+//  2. NULL-SAFE fromFirestore — SubscriptionModel.fromFirestore already has
+//     null-safe parsing; confirmed no raw doc['field'] access here.
+//
+//  3. OFFLINE SYNC QUEUE TYPE — the enqueue for createSubscription used
+//     SyncActionType.updateSubscription for a create action. Changed to a
+//     dedicated createSubscription type so the sync processor can use set()
+//     instead of update() (which fails if the doc doesn't exist yet).
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
+import 'package:uuid/uuid.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/errors/failures.dart';
+import '../../core/utils/logger.dart';
+import '../../services/connectivity_service.dart';
+import '../../services/local_storage_service.dart';
+import '../models/subscription_model.dart';
+import '../models/sync_action_model.dart';
+
+class SubscriptionRepository {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final ConnectivityService _connectivity = Get.find<ConnectivityService>();
+
+  String _col(String vendorId) =>
+      '${AppConstants.colVendors}/$vendorId/${AppConstants.colSubscriptions}';
+
+  // ── Realtime stream ───────────────────────────────────────────────────────
+  Stream<List<SubscriptionModel>> watchSubscriptions(String vendorId) {
+    return _db
+        .collection(_col(vendorId))
+        .where('status', whereIn: [
+          SubscriptionStatus.active.name,
+          SubscriptionStatus.paused.name,
+        ])
+        .snapshots()
+        .map((snap) {
+      final subs = snap.docs
+          .map((d) => SubscriptionModel.fromFirestore(d))
+          .toList()
+        ..sort((a, b) => a.customerName.compareTo(b.customerName));
+      LocalStorageService.saveSubscriptions(subs);
+      return subs;
+    })
+        .handleError((e) {
+      AppLogger.e('watchSubscriptions error', e);
+      return LocalStorageService.getSubscriptions();
+    });
+  }
+
+
+  // ── Fetch for customer ────────────────────────────────────────────────────
+  // FIX #1: added vendorId filter so vendors never see each other's data.
+  Future<Result<List<SubscriptionModel>>> fetchCustomerSubscriptions(
+      String vendorId, String customerId) async {
+    try {
+      final snap = await _db
+          .collection(_col(vendorId))
+          .where('customerId', isEqualTo: customerId)
+      // Belt-and-braces: the sub-collection already scopes to vendorId,
+      // but an explicit filter prevents accidental leakage if the data
+      // model ever changes to a top-level collection.
+          .where('vendorId', isEqualTo: vendorId)
+          .get();
+      return Result.success(
+          snap.docs.map((d) => SubscriptionModel.fromFirestore(d)).toList());
+    } catch (e) {
+      AppLogger.e('fetchCustomerSubscriptions error', e);
+      return Result.failure(FirestoreFailure(e.toString()));
+    }
+  }
+
+  // ── Create ────────────────────────────────────────────────────────────────
+  Future<Result<SubscriptionModel>> createSubscription({
+    required String vendorId,
+    required String customerId,
+    required String customerName,
+    required String serviceType,
+    required String frequency,
+    required double quantity,
+    required String unit,
+    required double pricePerUnit,
+    required String deliverySlot,
+    List<String> deliverySlots = const [],
+    List<int> customDays = const [],
+    String? notes,
+    DateTime? startDate,
+  }) async {
+    final id    = const Uuid().v4();
+    final now   = DateTime.now();
+    final start = startDate ?? now;
+
+    final effectiveSlots = deliverySlots.isNotEmpty
+        ? deliverySlots
+        : [deliverySlot.isNotEmpty ? deliverySlot : '07:00 AM'];
+
+    final sub = SubscriptionModel(
+      id:               id,
+      vendorId:         vendorId,
+      customerId:       customerId,
+      customerName:     customerName,
+      serviceTypeStr:   serviceType,
+      frequencyStr:     frequency,
+      quantity:         quantity,
+      unit:             unit,
+      pricePerUnit:     pricePerUnit,
+      pricePerDelivery: quantity * pricePerUnit,
+      deliverySlot:     effectiveSlots.first,
+      deliverySlots:    effectiveSlots,
+      startDate:        start,
+      customDays:       customDays,
+      notes:            notes,
+      createdAt:        now,
+      updatedAt:        now,
+    );
+
+    // Write to local cache immediately (offline-first)
+    await LocalStorageService.saveSubscription(sub);
+
+    if (_connectivity.isOnline.value) {
+      try {
+        await _db.collection(_col(vendorId)).doc(id).set(sub.toFirestore());
+        return Result.success(sub);
+      } catch (e) {
+        AppLogger.e('createSubscription Firestore error — queued', e);
+        await _enqueueCreate(vendorId, id, sub);
+        return Result.success(sub);
+      }
+    } else {
+      await _enqueueCreate(vendorId, id, sub);
+      return Result.success(sub);
+    }
+  }
+
+  // ── Pause / Resume / Cancel ───────────────────────────────────────────────
+
+  Future<Result<void>> pauseSubscription(
+      String vendorId, String subId, DateTime? resumeDate) async {
+    return _updateSubscription(vendorId, subId, {
+      'status': SubscriptionStatus.paused.name,
+      'pausedUntil':
+      resumeDate != null ? Timestamp.fromDate(resumeDate) : null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<Result<void>> resumeSubscription(
+      String vendorId, String subId) async {
+    return _updateSubscription(vendorId, subId, {
+      'status':      SubscriptionStatus.active.name,
+      'pausedUntil': null,
+      'updatedAt':   FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<Result<void>> cancelSubscription(
+      String vendorId, String subId) async {
+    return _updateSubscription(vendorId, subId, {
+      'status':    SubscriptionStatus.cancelled.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<Result<void>> updateSubscription(
+      String vendorId, SubscriptionModel sub) async {
+    // Write to local cache immediately
+    await LocalStorageService.saveSubscription(sub);
+
+    if (_connectivity.isOnline.value) {
+      try {
+        await _db
+            .collection(_col(vendorId))
+            .doc(sub.id)
+            .update(sub.toFirestore());
+        return const Result.success(null);
+      } catch (e) {
+        AppLogger.e('updateSubscription Firestore error — queued', e);
+        await _enqueueUpdate(vendorId, sub.id, sub.toFirestore());
+        return const Result.success(null);
+      }
+    } else {
+      await _enqueueUpdate(vendorId, sub.id, sub.toFirestore());
+      return const Result.success(null);
+    }
+  }
+
+  // ── Internal helpers ──────────────────────────────────────────────────────
+
+  Future<Result<void>> _updateSubscription(
+      String vendorId, String subId, Map<String, dynamic> payload) async {
+    if (_connectivity.isOnline.value) {
+      try {
+        await _db.collection(_col(vendorId)).doc(subId).update(payload);
+        return const Result.success(null);
+      } catch (e) {
+        await _enqueueUpdate(vendorId, subId, payload);
+        return const Result.success(null);
+      }
+    } else {
+      await _enqueueUpdate(vendorId, subId, payload);
+      return const Result.success(null);
+    }
+  }
+
+  // FIX #3: use a distinct action type for create vs update so the sync
+  // processor can call set() for creates and update() for updates.
+  Future<void> _enqueueCreate(
+      String vendorId, String id, SubscriptionModel sub) async {
+    await LocalStorageService.enqueueSyncAction(SyncActionModel(
+      id:            const Uuid().v4(),
+      // Using createSubscription name — sync processor must handle this
+      // with _db.collection(path).doc(id).set(payload).
+      actionTypeStr: SyncActionType.createSubscription.name,
+      collection:    _col(vendorId),
+      documentId:    id,
+      payload:       sub.toFirestore(),
+      createdAt:     DateTime.now(),
+    ));
+  }
+
+  Future<void> _enqueueUpdate(
+      String vendorId, String subId, Map<String, dynamic> payload) async {
+    await LocalStorageService.enqueueSyncAction(SyncActionModel(
+      id:            const Uuid().v4(),
+      actionTypeStr: SyncActionType.updateSubscription.name,
+      collection:    _col(vendorId),
+      documentId:    subId,
+      payload:       payload,
+      createdAt:     DateTime.now(),
+    ));
+  }
+}
